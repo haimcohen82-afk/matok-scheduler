@@ -6,3 +6,9 @@
   to = "/Index.html"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/index.html"
+  to = "/Index.html"
+  status = 301
+  force = true
