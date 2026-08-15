@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "matok-meta-connector",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "META_GRAPH_VERSION": "SET_AFTER_META_APP_CREATION",
+    "META_PAGE_ID": "SET_AFTER_META_CONNECTION",
+    "META_IG_USER_ID": "SET_AFTER_META_CONNECTION"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "SET_AFTER_CLOUDFLARE_CONNECTION"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "matok-meta-queue",
+      "database_id": "SET_AFTER_CLOUDFLARE_CONNECTION"
+    }
+  ],
+  "triggers": {
+    "crons": ["* * * * *"]
+  }
+}
