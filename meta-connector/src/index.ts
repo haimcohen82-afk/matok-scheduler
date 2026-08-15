@@ -1,9 +1,15 @@
-import { env as workerEnv } from "cloudflare:workers";
+import { env as workerEnv, WorkerEntrypoint } from "cloudflare:workers";
 import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler, getMcpAuthContext } from "agents/mcp/server";
 import { z } from "zod";
 import { AuthHandler } from "./auth-handler";
+
+type AuthProps = {
+  role: "owner";
+  business: "MATOK BASIC";
+  userId: "matok-owner";
+};
 
 type Env = {
   OAUTH_KV: KVNamespace;
@@ -361,18 +367,19 @@ function createServer() {
 }
 
 const mcpHandler = createMcpHandler(createServer, { route: "/mcp" });
-const mcpApiHandler: ExportedHandler<Env> = {
-  fetch(request, env, ctx) {
-    return mcpHandler(request, env, ctx);
+
+class McpApiHandler extends WorkerEntrypoint<Env, AuthProps> {
+  fetch(request: Request) {
+    return mcpHandler(request, this.env, this.ctx);
   }
-};
+}
 
 const oauthProvider = new OAuthProvider<Env>({
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/oauth/token",
   clientRegistrationEndpoint: "/oauth/register",
   apiRoute: "/mcp",
-  apiHandler: mcpApiHandler,
+  apiHandler: McpApiHandler,
   defaultHandler: {
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
       return AuthHandler.fetch(request, env, ctx);
