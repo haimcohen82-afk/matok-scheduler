@@ -3,11 +3,12 @@
   "name": "matok-meta-connector",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-16",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "vars": {
     "META_GRAPH_VERSION": "SET_AFTER_META_APP_CREATION",
     "META_PAGE_ID": "SET_AFTER_META_CONNECTION",
-    "META_IG_USER_ID": "SET_AFTER_META_CONNECTION"
+    "META_IG_USER_ID": "SET_AFTER_META_CONNECTION",
+    "PUBLIC_BASE_URL": "SET_AFTER_WORKER_DEPLOYMENT"
   },
   "kv_namespaces": [
     {
@@ -20,6 +21,12 @@
       "binding": "DB",
       "database_name": "matok-meta-queue",
       "database_id": "SET_AFTER_CLOUDFLARE_CONNECTION"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS",
+      "bucket_name": "matok-social-assets"
     }
   ],
   "triggers": {
