@@ -87,6 +87,6 @@ Before operational work, Claude must read these Drive files:
 13. Test one controlled approved post per channel.
 14. Test staging, queue, cancellation and failure handling before enabling live campaign scheduling.
 
-## Current Git safety
+## Current Git safety and QA
 
-Development is isolated on branch `matok-meta-connector`. Do not merge it into `main` until deployment and acceptance testing are complete. The branch adds only the `meta-connector/` directory and does not modify the existing MATOK scheduler application files.
+Development is isolated on branch `matok-meta-connector`. The existing scheduler application files are not modified. The branch contains the new `meta-connector/` implementation plus a dedicated GitHub Actions typecheck workflow. Node 24 dependency installation and strict TypeScript typecheck must remain green before deployment or merge. Do not merge the branch into `main` until Cloudflare deployment and end-to-end acceptance testing are complete.
