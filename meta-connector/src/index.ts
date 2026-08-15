@@ -360,13 +360,19 @@ function createServer() {
   return server;
 }
 
-const mcpHandler = createMcpHandler(createServer);
+const mcpHandler = createMcpHandler(createServer, { route: "/mcp" });
+const mcpApiHandler: ExportedHandler<Env> = {
+  fetch(request, env, ctx) {
+    return mcpHandler(request, env, ctx);
+  }
+};
+
 const oauthProvider = new OAuthProvider<Env>({
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/oauth/token",
   clientRegistrationEndpoint: "/oauth/register",
   apiRoute: "/mcp",
-  apiHandler: mcpHandler,
+  apiHandler: mcpApiHandler,
   defaultHandler: {
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
       return AuthHandler.fetch(request, env, ctx);
