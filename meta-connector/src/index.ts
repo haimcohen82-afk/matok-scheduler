@@ -8,11 +8,13 @@ import { AuthHandler } from "./auth-handler";
 type Env = {
   OAUTH_KV: KVNamespace;
   DB: D1Database;
+  ASSETS: R2Bucket;
   ADMIN_PASSWORD: string;
   META_GRAPH_VERSION: string;
   META_PAGE_ID: string;
   META_IG_USER_ID: string;
   META_PAGE_ACCESS_TOKEN: string;
+  PUBLIC_BASE_URL: string;
 };
 
 type Channel = "facebook" | "instagram";
@@ -45,7 +47,7 @@ function assertOwner() {
   if (auth?.props?.role !== "owner") throw new Error("MATOK owner authorization required");
 }
 
-function assertConfigured(e: Env) {
+function assertMetaConfigured(e: Env) {
   const missing = [
     ["META_GRAPH_VERSION", e.META_GRAPH_VERSION],
     ["META_PAGE_ID", e.META_PAGE_ID],
@@ -55,6 +57,14 @@ function assertConfigured(e: Env) {
   if (missing.length) throw new Error(`Connector is not fully configured: ${missing.join(", ")}`);
 }
 
+function assertAssetConfigured(e: Env) {
+  if (!e.PUBLIC_BASE_URL || e.PUBLIC_BASE_URL.startsWith("SET_")) {
+    throw new Error("PUBLIC_BASE_URL is not configured yet");
+  }
+  const url = new URL(e.PUBLIC_BASE_URL);
+  if (url.protocol !== "https:") throw new Error("PUBLIC_BASE_URL must use HTTPS");
+}
+
 function graphBase(e: Env) {
   if (!/^v\d+\.\d+$/.test(e.META_GRAPH_VERSION)) throw new Error("META_GRAPH_VERSION must look like vXX.X");
   return `https://graph.facebook.com/${e.META_GRAPH_VERSION}`;
@@ -62,7 +72,7 @@ function graphBase(e: Env) {
 
 async function graphCall(path: string, params: Record<string, string | undefined>, method = "GET") {
   const e = cfg();
-  assertConfigured(e);
+  assertMetaConfigured(e);
   const url = new URL(`${graphBase(e)}/${path.replace(/^\//, "")}`);
   const body = new URLSearchParams();
   for (const [k, v] of Object.entries({ ...params, access_token: e.META_PAGE_ACCESS_TOKEN })) {
@@ -73,7 +83,11 @@ async function graphCall(path: string, params: Record<string, string | undefined
     for (const [k, v] of body) url.searchParams.set(k, v);
     response = await fetch(url, { method: "GET" });
   } else {
-    response = await fetch(url, { method, headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
+    response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
   }
   const data = await response.json().catch(() => ({ error: { message: `Non-JSON response (${response.status})` } }));
   if (!response.ok || (data as any)?.error) {
@@ -85,13 +99,62 @@ async function graphCall(path: string, params: Record<string, string | undefined
 
 async function verifyConnection() {
   const e = cfg();
-  assertConfigured(e);
+  assertMetaConfigured(e);
   const page = await graphCall(e.META_PAGE_ID, { fields: "id,name,instagram_business_account" });
   return {
     ok: true,
     page: { id: page.id, name: page.name },
     instagram_business_account: page.instagram_business_account?.id ?? null,
-    configured_ig_user_id: e.META_IG_USER_ID
+    configured_ig_user_id: e.META_IG_USER_ID,
+    asset_staging: !e.PUBLIC_BASE_URL?.startsWith("SET_")
+  };
+}
+
+function extensionForContentType(contentType: string) {
+  const normalized = contentType.split(";", 1)[0].trim().toLowerCase();
+  const allowed: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "video/mp4": "mp4",
+    "video/quicktime": "mov"
+  };
+  const extension = allowed[normalized];
+  if (!extension) throw new Error(`Unsupported media type: ${normalized || "unknown"}`);
+  return { normalized, extension };
+}
+
+async function stageAsset(sourceUrl: string) {
+  const e = cfg();
+  assertAssetConfigured(e);
+  const source = new URL(sourceUrl);
+  if (source.protocol !== "https:") throw new Error("Only HTTPS source URLs can be staged");
+
+  const response = await fetch(source, {
+    method: "GET",
+    redirect: "follow",
+    headers: { "User-Agent": "MATOK-Meta-Connector/0.1" }
+  });
+  if (!response.ok || !response.body) throw new Error(`Could not fetch media (${response.status})`);
+
+  const contentType = response.headers.get("content-type") || "";
+  const { normalized, extension } = extensionForContentType(contentType);
+  const contentLength = Number(response.headers.get("content-length") || "0");
+  if (Number.isFinite(contentLength) && contentLength > 1_000_000_000) {
+    throw new Error("Media exceeds the 1 GB staging limit");
+  }
+
+  const key = `${crypto.randomUUID()}.${extension}`;
+  await e.ASSETS.put(key, response.body, {
+    httpMetadata: { contentType: normalized },
+    customMetadata: { sourceHost: source.hostname, stagedAt: new Date().toISOString() }
+  });
+
+  return {
+    key,
+    content_type: normalized,
+    bytes: contentLength || null,
+    url: `${e.PUBLIC_BASE_URL.replace(/\/$/, "")}/assets/${key}`
   };
 }
 
@@ -106,17 +169,19 @@ async function publishFacebook(kind: Kind, caption: string, assetUrl?: string | 
     const out = await graphCall(`${e.META_PAGE_ID}/photos`, { url: assetUrl, caption }, "POST");
     return { channel: "facebook", kind, id: out.post_id ?? out.id };
   }
-  throw new Error("Facebook reel publishing is not enabled in v1; use Instagram reel or add the Facebook Reels endpoint after Meta verification.");
+  throw new Error("Facebook reel publishing is not enabled in v1; enable it only after the Meta connection is verified.");
 }
 
 async function waitForContainer(containerId: string) {
   for (let attempt = 0; attempt < 12; attempt++) {
     const status = await graphCall(containerId, { fields: "status_code,status" });
     if (status.status_code === "FINISHED") return status;
-    if (["ERROR", "EXPIRED"].includes(status.status_code)) throw new Error(`Instagram container failed: ${status.status || status.status_code}`);
+    if (["ERROR", "EXPIRED"].includes(status.status_code)) {
+      throw new Error(`Instagram container failed: ${status.status || status.status_code}`);
+    }
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
-  throw new Error("Instagram media is still processing; try publish_instagram_container later.");
+  throw new Error("Instagram media is still processing; retry after checking the container status.");
 }
 
 async function createInstagramContainer(kind: Kind, caption: string, assetUrl?: string | null) {
@@ -125,7 +190,10 @@ async function createInstagramContainer(kind: Kind, caption: string, assetUrl?: 
   if (!assetUrl) throw new Error("asset_url is required for Instagram publishing");
   const params: Record<string, string> = { caption };
   if (kind === "image") params.image_url = assetUrl;
-  if (kind === "reel") { params.video_url = assetUrl; params.media_type = "REELS"; }
+  if (kind === "reel") {
+    params.video_url = assetUrl;
+    params.media_type = "REELS";
+  }
   const out = await graphCall(`${e.META_IG_USER_ID}/media`, params, "POST");
   return out.id as string;
 }
@@ -181,6 +249,30 @@ function createServer() {
     return jsonText({ mcp: { role: auth?.props?.role, business: auth?.props?.business }, meta });
   });
 
+  server.registerTool("stage_asset_from_url", {
+    description: "Copy an approved public HTTPS image/video into MATOK's temporary R2 staging area and return a stable Meta-readable URL. Does not publish anything.",
+    inputSchema: {
+      source_url: z.string().url(),
+      confirmation: z.literal("STAGE")
+    }
+  }, async ({ source_url }) => {
+    assertOwner();
+    return jsonText(await stageAsset(source_url));
+  });
+
+  server.registerTool("delete_staged_asset", {
+    description: "Delete a staged MATOK media asset from R2. Requires explicit confirmation.",
+    inputSchema: {
+      key: z.string().regex(/^[a-f0-9-]{36}\.(jpg|png|webp|mp4|mov)$/i),
+      confirmation: z.literal("DELETE_ASSET")
+    }
+  }, async ({ key }) => {
+    assertOwner();
+    const e = cfg();
+    await e.ASSETS.delete(key);
+    return jsonText({ key, status: "deleted" });
+  });
+
   server.registerTool("publish_now", {
     description: "Publish an approved MATOK post immediately to Facebook or Instagram. Requires explicit confirmation.",
     inputSchema: {
@@ -223,7 +315,10 @@ function createServer() {
 
   server.registerTool("list_scheduled_posts", {
     description: "List MATOK scheduled, processing, failed, published or cancelled Meta posts.",
-    inputSchema: { status: z.enum(["scheduled", "processing", "published", "cancelled", "failed", "all"]).default("scheduled"), limit: z.number().int().min(1).max(100).default(30) }
+    inputSchema: {
+      status: z.enum(["scheduled", "processing", "published", "cancelled", "failed", "all"]).default("scheduled"),
+      limit: z.number().int().min(1).max(100).default(30)
+    }
   }, async ({ status, limit }) => {
     assertOwner();
     const e = cfg();
@@ -266,17 +361,19 @@ function createServer() {
 }
 
 const mcpHandler = createMcpHandler(createServer);
-const oauthProvider = new OAuthProvider({
+const oauthProvider = new OAuthProvider<Env>({
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/oauth/token",
   clientRegistrationEndpoint: "/oauth/register",
   apiRoute: "/mcp",
   apiHandler: mcpHandler,
   defaultHandler: {
-    async fetch(request: Request, env: unknown, ctx: ExecutionContext) {
-      return AuthHandler.fetch(request, env as Record<string, unknown>, ctx);
+    async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+      return AuthHandler.fetch(request, env, ctx);
     }
-  }
+  },
+  scopesSupported: ["matok:meta"],
+  allowPlainPKCE: false
 });
 
 export default {
