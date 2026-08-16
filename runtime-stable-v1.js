@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION = '20260816-stable-1';
+  const VERSION = '20260816-stable-2';
   const EDIT_KEY = 'matokAdminEditWeek';
   const busy = new Set();
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -15,8 +15,11 @@
   function isAdmin(){ try { return appSession?.type === 'admin'; } catch (_) { return false; } }
   function editOpen(){
     if(!isAdmin()) return false;
-    try { return !published || sessionStorage.getItem(EDIT_KEY) === String(adminWeekStart || ''); }
-    catch (_) { return !published; }
+    try {
+      if(!published) return true;
+      if(currentWeekRecord && currentWeekRecord.locked_at == null) return true;
+      return sessionStorage.getItem(EDIT_KEY) === String(adminWeekStart || '');
+    } catch (_) { return !published; }
   }
   function avFor(slot, name){
     try { return (adminAvailabilityBySlot?.[slot] || []).find(x => x.name === name)?.status || ''; }
@@ -240,7 +243,7 @@
     }
     const previousLoad = typeof loadScheduleFromDb === 'function' ? loadScheduleFromDb : null;
     if(previousLoad){
-      loadScheduleFromDb = async function(...args){ const out=await previousLoad.apply(this,args); if(published && sessionStorage.getItem(EDIT_KEY)===String(adminWeekStart)) scheduleLocked=false; postProcessSchedule(); return out; };
+      loadScheduleFromDb = async function(...args){ const out=await previousLoad.apply(this,args); if(published && (currentWeekRecord?.locked_at==null || sessionStorage.getItem(EDIT_KEY)===String(adminWeekStart))) scheduleLocked=false; postProcessSchedule(); return out; };
     }
 
     window.setAssignmentById=setAssignmentStable;
