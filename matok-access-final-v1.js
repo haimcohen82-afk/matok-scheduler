@@ -1,8 +1,17 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-access-1';
+  const VERSION='20260819-final-access-2';
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
+
+  function keepAuthenticatedGateClosed(){
+    try{
+      if(!appSession?.type) return;
+      const gate=document.getElementById('authGate');if(gate)gate.classList.add('hidden');
+      const bar=document.getElementById('sessionBar');if(bar)bar.style.display='block';
+      const name=document.getElementById('sessionName');if(name&&!name.textContent)name.textContent=appSession.user?.name||'';
+    }catch(_){ }
+  }
 
   function routeLoginPane(){
     try{
@@ -53,9 +62,9 @@
     if(current){current.before(wrap);wrap.appendChild(b);wrap.appendChild(current)}else{wrap.appendChild(b);head.appendChild(wrap)}
   }
 
-  function enforce(){routeLoginPane();addAdminEntry()}
+  function enforce(){routeLoginPane();keepAuthenticatedGateClosed();addAdminEntry()}
   let timer=null;
   new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(enforce,40)}).observe(document.documentElement,{subtree:true,childList:true});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(enforce,100));else setTimeout(enforce,100);
-  setInterval(enforce,1500);
+  setInterval(enforce,500);
 })();
