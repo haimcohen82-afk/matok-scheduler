@@ -1,11 +1,13 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-admin-tools-1';
+  const VERSION='20260819-final-admin-tools-2';
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const SLOT_ORDER=['sun-am','sun-pm','mon-am','mon-pm','tue-am','tue-pm','wed-am','wed-pm','thu-am','thu-pm','fri'];
   const DAYS=[['ראשון',['sun-am','sun-pm']],['שני',['mon-am','mon-pm']],['שלישי',['tue-am','tue-pm']],['רביעי',['wed-am','wed-pm']],['חמישי',['thu-am','thu-pm']],['שישי',['fri']]];
+  const DAY_NAMES={sun:'ראשון',mon:'שני',tue:'שלישי',wed:'רביעי',thu:'חמישי',fri:'שישי'};
   const slotTitle=s=>s==='fri'?'שישי':s.endsWith('-am')?'בוקר':'ערב';
+  const humanSlot=s=>s==='fri'?'יום שישי':`יום ${DAY_NAMES[String(s).split('-')[0]]||s} · ${s.endsWith('-am')?'בוקר':'ערב'}`;
   const currentWeek=()=>{try{return adminWeekStart||''}catch(_){return ''}};
   const weekLabel=iso=>{if(!iso)return '—';const d=new Date(iso+'T12:00:00'),e=new Date(d);e.setDate(d.getDate()+5);return `${d.toLocaleDateString('he-IL',{day:'numeric',month:'numeric'})}–${e.toLocaleDateString('he-IL',{day:'numeric',month:'numeric',year:'numeric'})}`};
 
@@ -56,7 +58,7 @@
     const box=document.getElementById('mfHistoryBody');if(!box||!isAdmin())return;box.innerHTML='<small>טוען…</small>';
     const {data,error}=await supabaseClient.from('schedule_edit_log').select('action,slot_key,edited_at,staff:staff_id(full_name)').eq('week_start',currentWeek()).order('edited_at',{ascending:false}).limit(200);
     if(error){console.error(error);box.innerHTML='<div class="mfEmpty">טעינת היסטוריית השינויים נכשלה.</div>';return}
-    const rows=data||[];box.innerHTML=rows.length?rows.map(r=>`<div class="item"><div class="meta"><b>${esc(r.staff?.full_name||'עובד')} · ${esc(r.action==='add'?'נוסף':'הוסר')}</b><small>${esc(r.slot_key)} · ${new Date(r.edited_at).toLocaleString('he-IL')}</small></div><span class="badge ${r.action==='add'?'ok':'wait'}">${r.action==='add'?'+':'−'}</span></div>`).join(''):'<div class="mfEmpty">עדיין אין שינויים שנרשמו לשבוע הזה.</div>';
+    const rows=data||[];box.innerHTML=rows.length?rows.map(r=>`<div class="item"><div class="meta"><b>${esc(r.staff?.full_name||'עובד')} · ${esc(r.action==='add'?'נוסף לסידור':'הוסר מהסידור')}</b><small>${esc(humanSlot(r.slot_key))} · ${new Date(r.edited_at).toLocaleString('he-IL')}</small></div><span class="badge ${r.action==='add'?'ok':'wait'}">${r.action==='add'?'+':'−'}</span></div>`).join(''):'<div class="mfEmpty">עדיין אין שינויים שנרשמו לשבוע הזה.</div>';
   }
 
   function addTools(){
