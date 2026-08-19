@@ -8,11 +8,11 @@ MATOK Scheduler is built as a small set of source modules and deployed as one ve
 
 `build.mjs` performs the production build:
 
-1. removes static demo panels and legacy demo assignments from the source shell;
-2. disables obsolete legacy schedule polling/render calls;
+1. removes obsolete employee/admin panels, static demo records and legacy preview assignments from the source shell;
+2. compiles obsolete legacy schedule renderers, polling and unsafe whole-schedule writers down to no-ops;
 3. bundles the final modules into one `dist/index.html` file;
 4. writes `dist/version.json` with the exact build identifier;
-5. fails if old patch filenames, known demo records, or required capabilities are present/missing incorrectly.
+5. fails if old patch filenames, known demo records, unsafe legacy schedule deletion, polling, or required capabilities are present/missing incorrectly.
 
 `verify.mjs` is the single verification command for both CI and Netlify. It performs JavaScript syntax checks, runs the production build, and runs the smoke suite. Netlify publishes `dist/` only when verification succeeds.
 
@@ -24,7 +24,8 @@ MATOK Scheduler is built as a small set of source modules and deployed as one ve
 - `matok-access-final-v1.js` — login routing and manager login diagnostics/unlock tools.
 - `matok-whatsapp-final-v1.js` — guided WhatsApp queue after publishing/updating a schedule.
 - `matok-health-final-v1.js` — manager health check for deployed version, database, current schedule, next week, employee logins and payroll.
-- `matok-realtime-final-v1.js` — event-driven Supabase Realtime synchronization for assignments and availability; no periodic polling.
+- `matok-realtime-final-v1.js` — authenticated manager Realtime synchronization for assignments and availability. Employee schedule data remains private and refreshes on opening/focus instead of exposing assignment rows to anonymous clients.
+- `matok-admin-tools-final-v1.js` — schedule print/PDF, manager-note save, manual refresh and published-schedule edit history.
 
 All modules are bundled at build time. Production does not load them as a chain of runtime patch scripts.
 
@@ -58,7 +59,7 @@ Important server-side areas:
 
 `.github/workflows/verify.yml` runs `node verify.mjs` on every push to `main`.
 
-The smoke test requires critical login, scheduling, realtime synchronization, reporting, payroll, document and health capabilities. It also fails if old patch dependencies or known demo data leak into the production artifact.
+The smoke test requires critical login, scheduling, secure synchronization, reporting, payroll, documents, printing, edit history and health diagnostics. It also fails if old patch dependencies, known demo data, unsafe legacy schedule writes or obsolete polling leak into the production artifact.
 
 ## Deployment
 
