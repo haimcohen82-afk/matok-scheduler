@@ -21,6 +21,7 @@ jobs:
           node --check matok-ui-final-v1.js
           node --check matok-access-final-v1.js
           node --check matok-whatsapp-final-v1.js
+          node --check matok-health-final-v1.js
           node --check build.mjs
           node --check tests/smoke.mjs
       - name: Build production artifact
