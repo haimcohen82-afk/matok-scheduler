@@ -26,6 +26,7 @@ MATOK Scheduler is built as a small set of source modules and deployed as one ve
 - `matok-health-final-v1.js` — manager health check for deployed version, database, current schedule, next week, employee logins and payroll.
 - `matok-realtime-final-v1.js` — authenticated manager Realtime synchronization for assignments and availability. Employee schedule data remains private and refreshes on opening/focus instead of exposing assignment rows to anonymous clients.
 - `matok-admin-tools-final-v1.js` — schedule print/PDF, manager-note save, manual refresh and published-schedule edit history.
+- `matok-manager-home-final-v1.js` — clear manager dashboard separating the active published week from next week's availability/planning, with direct buttons to each workflow.
 
 All modules are bundled at build time. Production does not load them as a chain of runtime patch scripts.
 
@@ -59,7 +60,7 @@ Important server-side areas:
 
 `.github/workflows/verify.yml` runs `node verify.mjs` on every push to `main`.
 
-The smoke test requires critical login, scheduling, secure synchronization, reporting, payroll, documents, printing, edit history and health diagnostics. It also fails if old patch dependencies, known demo data, unsafe legacy schedule writes or obsolete polling leak into the production artifact.
+The smoke test requires critical login, scheduling, secure synchronization, reporting, payroll, documents, printing, edit history, current/next-week navigation and health diagnostics. It also fails if old patch dependencies, known demo data, unsafe legacy schedule writes or obsolete polling leak into the production artifact.
 
 ## Deployment
 
