@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-manager-home-2';
+  const VERSION='20260819-final-manager-home-3';
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const sunday=offset=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-d.getDay()+offset);return iso(d)};
@@ -47,10 +47,9 @@
     finally{loading=false}
   }
 
-  function mount(){
-    style();const root=ensure();if(root&&root.dataset.mfLoaded!=='1'){root.dataset.mfLoaded='1';load()}
-  }
+  function mount(){style();const root=ensure();if(root&&root.dataset.mfLoaded!=='1'){root.dataset.mfLoaded='1';load()}}
 
+  window.loadManagerWeekDashboard=load;
   let timer=null;new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(mount,80)}).observe(document.documentElement,{childList:true,subtree:true});
   window.addEventListener('focus',()=>{if(isAdmin())load()});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(mount,180),{once:true});else setTimeout(mount,100);
