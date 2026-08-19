@@ -24,7 +24,9 @@ const mustHave=[
   ['system health','mfHealthModal'],
   ['realtime schedule synchronization','matok-final-live-'],
   ['schedule print','mfPrintScheduleBtn'],
-  ['schedule edit history','mfEditHistoryModal']
+  ['schedule edit history','mfEditHistoryModal'],
+  ['manager current/next week dashboard','mfManagerWeeks'],
+  ['current published week shortcut','mfOpenCurrentWeek']
 ];
 for(const [name,token] of mustHave) if(!has(token)) fail(`missing ${name}: ${token}`);
 
