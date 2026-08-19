@@ -14,20 +14,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: JavaScript syntax
-        run: |
-          node --check matok-core-final-v1.js
-          node --check matok-payroll-final-v1.js
-          node --check matok-ui-final-v1.js
-          node --check matok-access-final-v1.js
-          node --check matok-whatsapp-final-v1.js
-          node --check matok-health-final-v1.js
-          node --check build.mjs
-          node --check tests/smoke.mjs
-      - name: Build production artifact
-        run: node build.mjs
-      - name: Smoke checks
-        run: node tests/smoke.mjs
+      - name: Verify production
+        run: node verify.mjs
       - name: Artifact summary
         run: |
           test -s dist/index.html
