@@ -7,6 +7,7 @@ const syntaxFiles=[
   'matok-access-final-v1.js',
   'matok-whatsapp-final-v1.js',
   'matok-health-final-v1.js',
+  'matok-realtime-final-v1.js',
   'build.mjs',
   'tests/smoke.mjs'
 ];
