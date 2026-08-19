@@ -20,7 +20,8 @@ const mustHave=[
   ['private document bucket','employee-documents'],
   ['employee home','mfHome'],
   ['admin schedule','mfAdminScheduleBody'],
-  ['payroll portal','payrollFinal']
+  ['payroll portal','payrollFinal'],
+  ['system health','mfHealthModal']
 ];
 for(const [name,token] of mustHave) if(!has(token)) fail(`missing ${name}: ${token}`);
 
