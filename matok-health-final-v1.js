@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-health-1';
+  const VERSION='20260819-final-health-2';
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const sunday=(offset=0)=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-d.getDay()+offset);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -8,7 +8,7 @@
   function ensureModal(){
     let m=document.getElementById('mfHealthModal');if(m)return m;
     m=document.createElement('div');m.id='mfHealthModal';m.className='modal';
-    m.innerHTML='<section style="width:min(820px,100%);max-height:92vh"><button class="close" id="mfHealthClose">×</button><div class="employeeHead"><div><h2>בדיקת מערכת</h2><small>גרסה, בסיס נתונים, סידור, כניסות ושכר — בדיקה אחת.</small></div><button class="btn secondary" id="mfHealthRefresh">בדיקה מחדש</button></div><div id="mfHealthBody"><small>בודק…</small></div></section>';
+    m.innerHTML='<section style="width:min(820px,100%);max-height:92vh"><button class="close" id="mfHealthClose">×</button><div class="employeeHead"><div><h2>בדיקת מערכת</h2><small>גרסה, בסיס נתונים, סידור, כוח אדם, כניסות ושכר — בדיקה אחת.</small></div><button class="btn secondary" id="mfHealthRefresh">בדיקה מחדש</button></div><div id="mfHealthBody"><small>בודק…</small></div></section>';
     document.body.appendChild(m);
     document.getElementById('mfHealthClose').onclick=()=>closeModal?.('mfHealthModal');
     document.getElementById('mfHealthRefresh').onclick=runHealth;
@@ -35,10 +35,23 @@
       out.push(row('חיבור לבסיס הנתונים',staffRes.error?'שגיאה':'תקין',!staffRes.error,staffRes.error?.message||`${staffRes.count||0} עובדים פעילים`));
 
       const weekRes=await supabaseClient.from('work_weeks').select('id,status,published_at,locked_at').eq('week_start',current).maybeSingle();
-      let assignmentCount=0;
-      if(weekRes.data?.id){const a=await supabaseClient.from('work_assignments').select('id',{count:'exact',head:true}).eq('week_id',weekRes.data.id).eq('status','approved');assignmentCount=a.count||0}
+      let assignmentCount=0,shortages=0,shortageDetail='';
+      if(weekRes.data?.id){
+        const [a,settings]=await Promise.all([
+          supabaseClient.from('work_assignments').select('slot_key').eq('week_id',weekRes.data.id).eq('status','approved'),
+          supabaseClient.rpc('admin_get_schedule_slot_settings',{p_week_start:current})
+        ]);
+        const rows=a.data||[];assignmentCount=rows.length;
+        if(!a.error&&!settings.error){
+          const counts=new Map();rows.forEach(x=>counts.set(x.slot_key,(counts.get(x.slot_key)||0)+1));
+          const missing=(settings.data||[]).filter(s=>(counts.get(s.slot_key)||0)<Number(s.required_count||0));
+          shortages=missing.length;
+          shortageDetail=missing.map(s=>`${s.slot_key}: ${counts.get(s.slot_key)||0}/${s.required_count}`).join(' · ');
+        }
+      }
       const currentOk=!weekRes.error&&weekRes.data?.status==='published'&&assignmentCount>0;
       out.push(row('סידור השבוע הנוכחי',weekRes.data?.status||'לא נמצא',currentOk,`${current} · ${assignmentCount} שיבוצים מאושרים`));
+      out.push(row('כוח אדם במשמרות',shortages?`${shortages} משמרות בחוסר`:'מלא',shortages===0,shortages?shortageDetail:'כל המשמרות עומדות בכמות הנדרשת'));
 
       const nextRes=await supabaseClient.from('work_weeks').select('id,status').eq('week_start',next).maybeSingle();
       out.push(row('השבוע הבא',nextRes.data?.status||'לא נפתח',!nextRes.error&&!!nextRes.data,`${next} · הגשת זמינות`));
