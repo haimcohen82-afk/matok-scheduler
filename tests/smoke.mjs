@@ -22,7 +22,9 @@ const mustHave=[
   ['admin schedule','mfAdminScheduleBody'],
   ['payroll portal','payrollFinal'],
   ['system health','mfHealthModal'],
-  ['realtime schedule synchronization','matok-final-live-']
+  ['realtime schedule synchronization','matok-final-live-'],
+  ['schedule print','mfPrintScheduleBtn'],
+  ['schedule edit history','mfEditHistoryModal']
 ];
 for(const [name,token] of mustHave) if(!has(token)) fail(`missing ${name}: ${token}`);
 
