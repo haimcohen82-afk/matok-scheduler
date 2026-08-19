@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-realtime-1';
+  const VERSION='20260819-final-realtime-2';
   let channel=null,sessionKey='',refreshTimer=null;
 
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
@@ -16,7 +16,7 @@
       try{
         if(isAdmin()) await window.loadAdminFinalData?.(window.adminWeekStart||adminWeekStart);
         if(isEmployee()) await window.loadCurrentPublishedSchedule?.();
-      }catch(e){console.error('realtime refresh',e)}
+      }catch(e){console.error('final refresh',e)}
     },140);
   }
 
@@ -27,20 +27,23 @@
 
   function sync(){
     const next=key();
-    if(!next||next==='undefined:'){stop();sessionKey='';return}
-    if(next===sessionKey&&channel)return;
+    if(!next){stop();sessionKey='';return}
+    if(next===sessionKey && (channel||isEmployee()))return;
     stop();sessionKey=next;
     if(!window.supabaseClient)return;
-    channel=supabaseClient.channel('matok-final-live-'+Date.now());
+
+    // Managers use authenticated Supabase Realtime. Employees use custom PIN auth,
+    // so assignment tables remain private and are refreshed on open/focus instead
+    // of exposing schedule rows to the anonymous role.
     if(isAdmin()){
-      channel
+      channel=supabaseClient.channel('matok-final-live-'+Date.now())
         .on('postgres_changes',{event:'*',schema:'public',table:'work_assignments'},scheduleRefresh)
         .on('postgres_changes',{event:'*',schema:'public',table:'staff_availability'},scheduleRefresh)
         .on('postgres_changes',{event:'*',schema:'public',table:'staff_week_submissions'},scheduleRefresh);
+      channel.subscribe(status=>{if(status==='SUBSCRIBED')scheduleRefresh()});
     }else if(isEmployee()){
-      channel.on('postgres_changes',{event:'*',schema:'public',table:'work_assignments'},scheduleRefresh);
+      scheduleRefresh();
     }
-    channel.subscribe(status=>{if(status==='SUBSCRIBED')scheduleRefresh()});
   }
 
   function startObserver(){
