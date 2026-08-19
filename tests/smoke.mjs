@@ -32,9 +32,11 @@ const forbidden=[
   'schedule-pro.js','schedule-pro-v2.js','schedule-pro-v3.js','schedule-assignment-v3.js',
   'workflow-upgrade-v1.js','workflow-upgrade-v2.js','runtime-stable-v1.js',
   'employee-simple-ui-v1.js','employee-portal-stable-v2.js','payroll-suite-v2.js',
-  'matok-legacy-guard-v1.js',"fetch('/Index.html"
+  'matok-legacy-guard-v1.js',"fetch('/Index.html",
+  ".from('work_assignments').delete().eq('week_id'",
+  'adminAvailabilityPoll=setInterval'
 ];
-for(const token of forbidden) if(has(token)) fail(`legacy production dependency found: ${token}`);
+for(const token of forbidden) if(has(token)) fail(`unsafe or legacy production dependency found: ${token}`);
 
 for(const demo of ['רוני ישראלי','נועה לוי','שירה כהן','שירה · 20.7']) if(has(demo)) fail(`demo data leaked into production: ${demo}`);
 
