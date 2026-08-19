@@ -9,7 +9,8 @@ const MODULES=[
   'matok-access-final-v1.js',
   'matok-whatsapp-final-v1.js',
   'matok-health-final-v1.js',
-  'matok-realtime-final-v1.js'
+  'matok-realtime-final-v1.js',
+  'matok-admin-tools-final-v1.js'
 ];
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
@@ -73,23 +74,20 @@ function replaceFunctionBody(source,name,body='return;'){
 }
 
 function removeLegacyAdminRuntime(html){
-  for(const name of ['renderAdminSchedule','renderAdminOverview','loadScheduleFromDb','loadAdminAvailability','startAdminAvailabilityLive','syncScheduleLockUi']){
-    html=replaceFunctionBody(html,name,'return;');
-  }
+  const obsolete=[
+    'renderAdminSchedule','renderAdminOverview','loadScheduleFromDb','loadAdminAvailability','startAdminAvailabilityLive','syncScheduleLockUi',
+    'saveScheduleToDb','lockPreviewSchedule','unlockPreviewSchedule','publishPreview','changeAdminWeek','saveManagerNote'
+  ];
+  for(const name of obsolete)html=replaceFunctionBody(html,name,'return;');
   return html;
 }
 
 function stripKnownDemoText(html){
   const phrases=[
-    'שירה · 20.7',
-    'רוני ישראלי',
-    'נועה לוי',
-    'שירה כהן',
-    'רוני · הצעת ייעול — להוסיף מדף ליד הקופה',
-    'רוני · טושים שחורים',
-    'נועה · שקיות מותג בינוניות'
+    'שירה · 20.7','רוני ישראלי','נועה לוי','שירה כהן',
+    'רוני · הצעת ייעול — להוסיף מדף ליד הקופה','רוני · טושים שחורים','נועה · שקיות מותג בינוניות'
   ];
-  for(const p of phrases) html=html.split(p).join('');
+  for(const p of phrases)html=html.split(p).join('');
   return html;
 }
 
@@ -97,8 +95,9 @@ await rm('dist',{recursive:true,force:true});
 await mkdir('dist',{recursive:true});
 
 let html=await readFile(SOURCE_SHELL,'utf8');
-html=replaceSectionById(html,'attendance','<section id="attendance" class="panel"></section>');
-html=replaceSectionById(html,'requests','<section id="requests" class="panel"></section>');
+for(const id of ['attendance','requests','adminSchedule','settings','contact','hours','scheduleWorker']){
+  html=replaceSectionById(html,id,`<section id="${id}" class="panel"></section>`);
+}
 html=clearObjectDeclaration(html,'previewAssignments');
 html=removeLegacyAdminRuntime(html);
 html=stripKnownDemoText(html);
@@ -119,15 +118,13 @@ const forbidden=[
   'employee-simple-ui-v1.js','employee-portal-stable-v2.js','payroll-suite-v2.js',
   'matok-legacy-guard-v1.js','fetch(\'/Index.html'
 ];
-for(const token of forbidden){
-  if(html.includes(token)) throw new Error(`production build contains forbidden legacy token: ${token}`);
-}
-for(const demo of ['רוני ישראלי','נועה לוי','שירה כהן','שירה · 20.7']){
-  if(html.includes(demo)) throw new Error(`production build contains demo data: ${demo}`);
-}
-for(const required of ['employee_validate_session','employee_get_current_schedule_v2','admin_set_published_assignment','admin_get_week_staff_summary_v2','admin_get_staff_login_status','admin_register_employee_document','employee_list_documents','mfHealthModal','matok-final-live-']){
-  if(!html.includes(required)) throw new Error(`production build missing required capability: ${required}`);
-}
+for(const token of forbidden)if(html.includes(token))throw new Error(`production build contains forbidden legacy token: ${token}`);
+for(const demo of ['רוני ישראלי','נועה לוי','שירה כהן','שירה · 20.7'])if(html.includes(demo))throw new Error(`production build contains demo data: ${demo}`);
+for(const required of [
+  'employee_validate_session','employee_get_current_schedule_v2','admin_set_published_assignment','admin_get_week_staff_summary_v2',
+  'admin_get_staff_login_status','admin_register_employee_document','employee_list_documents','mfHealthModal','matok-final-live-',
+  'mfPrintScheduleBtn','mfEditHistoryModal'
+])if(!html.includes(required))throw new Error(`production build missing required capability: ${required}`);
 
 await writeFile('dist/index.html',html,'utf8');
 await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,generatedAt:new Date().toISOString()},null,2),'utf8');
