@@ -21,7 +21,8 @@ const mustHave=[
   ['employee home','mfHome'],
   ['admin schedule','mfAdminScheduleBody'],
   ['payroll portal','payrollFinal'],
-  ['system health','mfHealthModal']
+  ['system health','mfHealthModal'],
+  ['realtime schedule synchronization','matok-final-live-']
 ];
 for(const [name,token] of mustHave) if(!has(token)) fail(`missing ${name}: ${token}`);
 
