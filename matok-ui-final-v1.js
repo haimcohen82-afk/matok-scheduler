@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-ui-1';
+  const VERSION='20260819-final-ui-2';
 
   function addStyles(){
     if(document.getElementById('matokFinalUiStyles')) return;
@@ -22,8 +22,14 @@
       @media(min-width:651px){.mfDayCompactFinal,.mfDayNavFinal{display:none!important}}
       .mfPublishedAvailabilityHidden{background:#eef9f6;border:1px solid #abd8cf;border-radius:11px;padding:12px;line-height:1.55}
       .mfFinalSettingsCard{max-width:650px}
+      .mfCurrentWeekEditBtn{background:#eef9f6!important;border-color:#9bcfc5!important;color:#245f56!important}
     `;
     document.head.appendChild(s);
+  }
+
+  function currentSunday(){
+    const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-d.getDay());
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
   function daySummary(day){
@@ -74,6 +80,19 @@
     });
   }
 
+  function addCurrentWeekEditButton(){
+    try{
+      if(appSession?.type!=='admin') return;
+      const schedule=document.getElementById('adminSchedule');
+      const actions=schedule?.querySelector('.employeeHead .actions');
+      if(!actions || document.getElementById('mfCurrentWeekEditBtn')) return;
+      const b=document.createElement('button');
+      b.id='mfCurrentWeekEditBtn';b.type='button';b.className='btn secondary mfCurrentWeekEditBtn';b.textContent='הסידור של השבוע הנוכחי';
+      b.onclick=()=>window.loadAdminFinalData?.(currentSunday());
+      actions.prepend(b);
+    }catch(_){ }
+  }
+
   function cleanPublishedAvailability(){
     try{
       if(appSession?.type!=='admin' || currentWeekRecord?.status!=='published') return;
@@ -96,11 +115,36 @@
     }catch(_){ }
   }
 
+  function polishEmployeeMenu(){
+    try{
+      if(appSession?.type!=='employee') return;
+      const home=document.getElementById('mfHome');if(!home)return;
+      const docs=home.querySelector('.mfAction.docs');
+      if(docs && docs.dataset.mfPolished!=='1'){
+        docs.dataset.mfPolished='1';
+        const b=docs.querySelector('b'),small=docs.querySelector('small');
+        if(b)b.textContent='הנתונים שלי';if(small)small.textContent='תלושים, דוחות ומסמכים אישיים';
+      }
+      const hours=home.querySelector('.mfAction.hours');
+      if(hours && hours.dataset.mfPolished!=='1'){
+        hours.dataset.mfPolished='1';
+        const b=hours.querySelector('b'),small=hours.querySelector('small');
+        if(b)b.textContent='שעות נוכחות';if(small)small.textContent='צפייה בשעות שנשמרו עבורך';
+        const bonus=hours.cloneNode(true);bonus.classList.remove('hours');bonus.classList.add('messages');bonus.removeAttribute('data-mf-section');bonus.removeAttribute('data-mf-focus');bonus.dataset.mfBonus='1';
+        const bb=bonus.querySelector('b'),bs=bonus.querySelector('small'),bi=bonus.querySelector('.mfActionIcon');if(bb)bb.textContent='בונוסים';if(bs)bs.textContent='צפייה בבונוסים לפי חודש';if(bi)bi.textContent='₪';
+        bonus.onclick=()=>{hours.click();setTimeout(()=>document.getElementById('mfEmployeePayrollCard')?.scrollIntoView({behavior:'smooth',block:'start'}),120)};
+        hours.after(bonus);
+      }
+    }catch(_){ }
+  }
+
   function enforce(){
     addStyles();
     if(document.querySelector('#mfAdminScheduleBody .mfDay')) decorateSchedule();
+    addCurrentWeekEditButton();
     cleanPublishedAvailability();
     cleanSettingsTab();
+    polishEmployeeMenu();
   }
 
   addStyles();
