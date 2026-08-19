@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-whatsapp-1';
+  const VERSION='20260819-final-whatsapp-2';
 
   function decorate(){
     const modal=document.getElementById('mfWaModal');
@@ -33,6 +33,7 @@
   }
 
   let timer=null;
-  new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(decorate,30)}).observe(document.documentElement,{subtree:true,childList:true});
-  setInterval(decorate,1000);
+  const observer=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(decorate,35)});
+  observer.observe(document.documentElement,{subtree:true,childList:true});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(decorate,120),{once:true});else setTimeout(decorate,80);
 })();
