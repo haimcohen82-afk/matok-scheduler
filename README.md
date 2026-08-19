@@ -4,17 +4,17 @@ MATOK Scheduler is built as a small set of source modules and deployed as one ve
 
 ## Production build
 
-`Index.html` is the source shell. Netlify does **not** publish it directly.
+`Index.html` is a build-time source shell only. Netlify does **not** publish it directly.
 
 `build.mjs` performs the production build:
 
-1. removes static demo panels from the source shell;
+1. removes static demo panels and legacy demo assignments from the source shell;
 2. disables obsolete legacy schedule polling/render calls;
 3. bundles the final modules into one `dist/index.html` file;
 4. writes `dist/version.json` with the exact build identifier;
-5. fails the build if old patch filenames, known demo records, or required capabilities are missing.
+5. fails if old patch filenames, known demo records, or required capabilities are present/missing incorrectly.
 
-Netlify runs `node build.mjs` and publishes only `dist/`.
+`verify.mjs` is the single verification command for both CI and Netlify. It performs JavaScript syntax checks, runs the production build, and runs the smoke suite. Netlify publishes `dist/` only when verification succeeds.
 
 ## Production modules
 
@@ -24,6 +24,7 @@ Netlify runs `node build.mjs` and publishes only `dist/`.
 - `matok-access-final-v1.js` — login routing and manager login diagnostics/unlock tools.
 - `matok-whatsapp-final-v1.js` — guided WhatsApp queue after publishing/updating a schedule.
 - `matok-health-final-v1.js` — manager health check for deployed version, database, current schedule, next week, employee logins and payroll.
+- `matok-realtime-final-v1.js` — event-driven Supabase Realtime synchronization for assignments and availability; no periodic polling.
 
 All modules are bundled at build time. Production does not load them as a chain of runtime patch scripts.
 
@@ -44,19 +45,21 @@ Important server-side areas:
 
 1. Never delete/rebuild a whole published schedule just to add or remove one employee. Use the single-assignment RPC.
 2. Never publish an empty schedule.
-3. A manager may override employee availability or fixed-day settings; employees cannot.
-4. Employee documents remain private and are opened through short-lived signed URLs after employee credential validation.
-5. Old availability remains available for history/summary but is hidden from the active manager view once that week is published.
-6. Admin RPCs are executable only by authenticated users and still verify `is_admin()` server-side.
-7. Employee-session validation must never increment the failed-login counter.
-8. Do not restore superseded scripts from Git history.
+3. Publishing accepts only approved assignments for active staff and valid schedule slots.
+4. A manager may override employee availability or fixed-day settings; employees cannot.
+5. Employee documents remain private and are opened through short-lived signed URLs after employee credential validation.
+6. Old availability remains available for history/summary but is hidden from the active manager view once that week is published.
+7. Admin RPCs are executable only by authenticated users and still verify `is_admin()` server-side.
+8. Employee-session validation must never increment the failed-login counter.
+9. Employee availability accepts only known slots and valid statuses.
+10. Do not restore superseded scripts from Git history.
 
 ## Verification
 
-`.github/workflows/verify.yml` checks JavaScript syntax, builds the production artifact and runs `tests/smoke.mjs` on every push to `main`.
+`.github/workflows/verify.yml` runs `node verify.mjs` on every push to `main`.
 
-The smoke test requires the critical login, scheduling, reporting, payroll, document and health capabilities and fails if old patch dependencies or demo data leak into the production artifact.
+The smoke test requires critical login, scheduling, realtime synchronization, reporting, payroll, document and health capabilities. It also fails if old patch dependencies or known demo data leak into the production artifact.
 
 ## Deployment
 
-`netlify.toml` runs the production build and publishes `dist/`. Cache is disabled for the application and `version.json`, so a deployment can be identified precisely from the manager health check.
+`netlify.toml` runs `node verify.mjs` and publishes `dist/`. Cache is disabled for the application and `version.json`, so a deployment can be identified precisely from the manager health check.
