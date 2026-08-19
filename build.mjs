@@ -8,7 +8,8 @@ const MODULES=[
   'matok-ui-final-v1.js',
   'matok-access-final-v1.js',
   'matok-whatsapp-final-v1.js',
-  'matok-health-final-v1.js'
+  'matok-health-final-v1.js',
+  'matok-realtime-final-v1.js'
 ];
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
@@ -112,7 +113,7 @@ for(const token of forbidden){
 for(const demo of ['רוני ישראלי','נועה לוי','שירה כהן','שירה · 20.7']){
   if(html.includes(demo)) throw new Error(`production build contains demo data: ${demo}`);
 }
-for(const required of ['employee_validate_session','employee_get_current_schedule_v2','admin_set_published_assignment','admin_get_week_staff_summary_v2','admin_get_staff_login_status','admin_register_employee_document','employee_list_documents','mfHealthModal']){
+for(const required of ['employee_validate_session','employee_get_current_schedule_v2','admin_set_published_assignment','admin_get_week_staff_summary_v2','admin_get_staff_login_status','admin_register_employee_document','employee_list_documents','mfHealthModal','matok-final-live-']){
   if(!html.includes(required)) throw new Error(`production build missing required capability: ${required}`);
 }
 
