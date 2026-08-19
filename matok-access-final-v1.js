@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-access-2';
+  const VERSION='20260819-final-access-3';
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
 
@@ -64,7 +64,7 @@
 
   function enforce(){routeLoginPane();keepAuthenticatedGateClosed();addAdminEntry()}
   let timer=null;
-  new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(enforce,40)}).observe(document.documentElement,{subtree:true,childList:true});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(enforce,100));else setTimeout(enforce,100);
-  setInterval(enforce,500);
+  const observer=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(enforce,45)});
+  observer.observe(document.documentElement,{subtree:true,childList:true});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(enforce,100),{once:true});else setTimeout(enforce,80);
 })();
