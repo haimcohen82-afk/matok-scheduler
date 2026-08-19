@@ -31,6 +31,30 @@ function replaceSectionById(html,id,replacement){
   throw new Error(`unclosed section #${id}`);
 }
 
+function clearObjectDeclaration(source,name){
+  const re=new RegExp(`\\b(?:let|const|var)\\s+${name}\\s*=\\s*\\{`,'m');
+  const match=re.exec(source);
+  if(!match)return source;
+  const braceStart=match.index+match[0].lastIndexOf('{');
+  let depth=0,quote='',escaped=false;
+  for(let i=braceStart;i<source.length;i++){
+    const ch=source[i];
+    if(quote){
+      if(escaped){escaped=false;continue}
+      if(ch==='\\'){escaped=true;continue}
+      if(ch===quote)quote='';
+      continue;
+    }
+    if(ch==='"'||ch==="'"||ch==='`'){quote=ch;continue}
+    if(ch==='{')depth++;
+    if(ch==='}'){
+      depth--;
+      if(depth===0)return source.slice(0,braceStart)+'{}'+source.slice(i+1);
+    }
+  }
+  throw new Error(`could not clear object declaration: ${name}`);
+}
+
 function disableLegacyScheduleRuntime(html){
   const replacements=[
     [/\bstartAdminAvailabilityLive\(\);/g,'/* final runtime: no legacy availability polling */'],
@@ -62,6 +86,7 @@ await mkdir('dist',{recursive:true});
 let html=await readFile(SOURCE_SHELL,'utf8');
 html=replaceSectionById(html,'attendance','<section id="attendance" class="panel"></section>');
 html=replaceSectionById(html,'requests','<section id="requests" class="panel"></section>');
+html=clearObjectDeclaration(html,'previewAssignments');
 html=disableLegacyScheduleRuntime(html);
 html=stripKnownDemoText(html);
 
