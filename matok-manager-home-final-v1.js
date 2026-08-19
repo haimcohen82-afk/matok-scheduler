@@ -1,12 +1,12 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-manager-home-3';
+  const VERSION='20260819-final-manager-home-4';
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const sunday=offset=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-d.getDay()+offset);return iso(d)};
   const fmt=week=>{const d=new Date(week+'T12:00:00'),e=new Date(d);e.setDate(d.getDate()+5);return `${d.toLocaleDateString('he-IL',{day:'numeric',month:'numeric'})}–${e.toLocaleDateString('he-IL',{day:'numeric',month:'numeric'})}`};
   const statusText=s=>({published:'פורסם',availability_open:'פתוח להגשת משמרות',draft:'טיוטה',closed:'סגור'}[s]||'לא נפתח');
-  let loading=false;
+  let loading=false,initialWeekSelected=false;
 
   function style(){if(document.getElementById('mfManagerHomeStyle'))return;const s=document.createElement('style');s.id='mfManagerHomeStyle';s.textContent=`.mfManagerWeeks{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:0 0 13px}.mfWeekHero{border:1px solid var(--line);background:#fff;border-radius:16px;padding:15px;box-shadow:0 8px 22px #1a1a2e0b}.mfWeekHero.current{border-right:6px solid var(--teal)}.mfWeekHero.next{border-right:6px solid var(--coral)}.mfWeekHero h2{margin:3px 0}.mfWeekHero p{margin:4px 0;color:var(--muted)}.mfWeekMeta{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}.mfWeekMeta span{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:10px;font-weight:800}.mfManagerHomeHead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px}@media(max-width:700px){.mfManagerWeeks{grid-template-columns:1fr}}`;document.head.appendChild(s)}
 
@@ -47,7 +47,11 @@
     finally{loading=false}
   }
 
-  function mount(){style();const root=ensure();if(root&&root.dataset.mfLoaded!=='1'){root.dataset.mfLoaded='1';load()}}
+  async function mount(){
+    style();const root=ensure();if(!root)return;
+    if(!initialWeekSelected){initialWeekSelected=true;try{await window.loadAdminFinalData?.(sunday(0))}catch(e){console.error('select active week',e)}}
+    if(root.dataset.mfLoaded!=='1'){root.dataset.mfLoaded='1';load()}
+  }
 
   window.loadManagerWeekDashboard=load;
   let timer=null;new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(mount,80)}).observe(document.documentElement,{childList:true,subtree:true});
