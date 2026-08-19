@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-ui-2';
+  const VERSION='20260819-final-ui-3';
 
   function addStyles(){
     if(document.getElementById('matokFinalUiStyles')) return;
@@ -149,7 +149,7 @@
 
   addStyles();
   let timer=null;
-  new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(enforce,30)}).observe(document.documentElement,{childList:true,subtree:true});
-  setInterval(enforce,1200);
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(enforce,200)); else setTimeout(enforce,200);
+  const observer=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(enforce,35)});
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(enforce,120),{once:true}); else setTimeout(enforce,80);
 })();
