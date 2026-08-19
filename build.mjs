@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { basename } from 'node:path';
 
-const SOURCE_SHELL='Index.html';
+const SOURCE_SHELL='app-shell.html';
 const MODULES=[
   'matok-core-final-v1.js',
   'matok-payroll-final-v1.js',
