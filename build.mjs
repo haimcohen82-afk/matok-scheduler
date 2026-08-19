@@ -96,7 +96,10 @@ await rm('dist',{recursive:true,force:true});
 await mkdir('dist',{recursive:true});
 
 let html=await readFile(SOURCE_SHELL,'utf8');
-for(const id of ['attendance','requests','adminSchedule','settings','contact','hours','scheduleWorker']){
+// Only these two panels contain hard-coded demo people. Other shell panels stay in
+// place because legacy startup code references their DOM nodes before final modules
+// replace their contents after authentication.
+for(const id of ['attendance','requests']){
   html=replaceSectionById(html,id,`<section id="${id}" class="panel"></section>`);
 }
 html=clearObjectDeclaration(html,'previewAssignments');
@@ -124,8 +127,8 @@ for(const demo of ['רוני ישראלי','נועה לוי','שירה כהן','
 for(const required of [
   'employee_validate_session','employee_get_current_schedule_v2','admin_set_published_assignment','admin_get_week_staff_summary_v2',
   'admin_get_staff_login_status','admin_register_employee_document','employee_list_documents','mfHealthModal','matok-final-live-',
-  'mfPrintScheduleBtn','mfEditHistoryModal','mfManagerWeeks','mfOpenCurrentWeek'
-])if(!html.includes(required))throw new Error(`production build missing required capability: ${required}`);
+  'mfPrintScheduleBtn','mfEditHistoryModal','mfManagerWeeks','mfOpenCurrentWeek','settingsRows','supplies'
+])if(!html.includes(required))throw new Error(`production build missing required capability or shell dependency: ${required}`);
 
 await writeFile('dist/index.html',html,'utf8');
 await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,generatedAt:new Date().toISOString()},null,2),'utf8');
