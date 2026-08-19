@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
-<meta name="matok-live-version" content="20260819-final-1">
+<meta name="matok-live-version" content="20260819-final-2">
 <title>MATOK סידור עבודה</title>
 </head>
 <body>
 <script>
 (async()=>{
   try{
-    const V='20260819-final-1';
+    const V='20260819-final-2';
     const html=await fetch('/Index.html?v='+V,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('app_load_failed');return r.text()});
-    const patched=html.replace('</body>','<script src="/matok-core-final-v1.js?v='+V+'"><\/script><script src="/matok-payroll-final-v1.js?v='+V+'"><\/script></body>');
+    const patched=html.replace('</body>','<script src="/matok-core-final-v1.js?v='+V+'"><\/script><script src="/matok-payroll-final-v1.js?v='+V+'"><\/script><script src="/matok-ui-final-v1.js?v='+V+'"><\/script></body>');
     document.open();document.write(patched);document.close();
   }catch(e){
     console.error(e);
