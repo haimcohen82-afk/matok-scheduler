@@ -8,6 +8,7 @@ const syntaxFiles=[
   'matok-whatsapp-final-v1.js',
   'matok-health-final-v1.js',
   'matok-realtime-final-v1.js',
+  'matok-admin-tools-final-v1.js',
   'build.mjs',
   'tests/smoke.mjs'
 ];
