@@ -9,6 +9,7 @@ const syntaxFiles=[
   'matok-health-final-v1.js',
   'matok-realtime-final-v1.js',
   'matok-admin-tools-final-v1.js',
+  'matok-manager-home-final-v1.js',
   'build.mjs',
   'tests/smoke.mjs'
 ];
