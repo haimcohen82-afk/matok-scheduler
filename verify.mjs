@@ -13,7 +13,8 @@ const syntaxFiles=[
   'matok-admin-tools-final-v1.js',
   'matok-manager-home-final-v1.js',
   'build.mjs',
-  'tests/smoke.mjs'
+  'tests/smoke.mjs',
+  'tests/schedule-regression.mjs'
 ];
 
 function run(args,label){
@@ -29,4 +30,5 @@ try{await access('Index.html');throw new Error('legacy Index.html must not exist
 for(const file of syntaxFiles) run(['--check',file],`syntax check: ${file}`);
 run(['build.mjs'],'production build');
 run(['tests/smoke.mjs'],'smoke checks');
+run(['tests/schedule-regression.mjs'],'schedule regression checks');
 console.log('MATOK production verification passed');
