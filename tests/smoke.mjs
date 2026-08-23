@@ -8,6 +8,10 @@ const mustHave=[
   ['employee login','employee_login'],
   ['safe employee session','employee_validate_session'],
   ['current published schedule','employee_get_current_schedule_v2'],
+  ['published schedule notice','employee_get_schedule_notice'],
+  ['published schedule viewed','employee_mark_schedule_viewed'],
+  ['schedule notice UI','mfScheduleNotice'],
+  ['schedule unread badge','mfScheduleNewBadge'],
   ['availability submit','employee_save_availability'],
   ['published schedule edit','admin_set_published_assignment'],
   ['staff summary','admin_get_week_staff_summary_v2'],
@@ -24,8 +28,9 @@ const mustHave=[
   ['employee schedule action','צפייה בסידור עבודה'],
   ['employee availability action','הגשת משמרות'],
   ['employee shortage action','דיווח / חוסר בחנות'],
-  ['employee documents action','תלושים ודוחות'],
-  ['employee hours and bonuses action','שעות ובונוסים'],
+  ['employee personal data action','הנתונים שלי'],
+  ['employee attendance action','שעות נוכחות'],
+  ['employee bonus action','בונוסים'],
   ['employee messages action','הפניות שלי'],
   ['admin schedule','mfAdminScheduleBody'],
   ['payroll portal','payrollFinal'],
@@ -51,7 +56,10 @@ const forbidden=[
 ];
 for(const token of forbidden) if(has(token)) fail(`unsafe or legacy production dependency found: ${token}`);
 
-for(const demo of ['רוני ישראלי','נועה לוי','שירה כהן','שירה · 20.7']) if(has(demo)) fail(`demo data leaked into production: ${demo}`);
+for(const demo of [
+  'רוני ישראלי','נועה לוי','שירה כהן','שירה · 20.7',
+  'להוסיף מדף ליד הקופה','טושים שחורים','שקיות מותג בינוניות'
+]) if(has(demo)) fail(`demo data leaked into production: ${demo}`);
 
 const versionMatches=[...html.matchAll(/matok-live-version/g)].length;
 if(versionMatches!==1) fail(`expected one build version marker, found ${versionMatches}`);
