@@ -40,6 +40,9 @@ const mustHave=[
   ['system health','mfHealthModal'],
   ['realtime schedule synchronization','matok-final-live-'],
   ['schedule print','mfPrintScheduleBtn'],
+  ['assigned staff removed from availability chips','!assignedIds.has(String(a.staff_id))'],
+  ['assigned staff removed from candidate picker','adminState.staff.filter(s=>!on.has(String(s.id)))'],
+  ['blank print protection','ההדפסה נעצרה כדי לא להפיק דף ריק'],
   ['schedule edit history','mfEditHistoryModal'],
   ['manager current/next week dashboard','mfManagerWeeks'],
   ['current published week shortcut','mfOpenCurrentWeek']
