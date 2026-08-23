@@ -5,6 +5,7 @@ const syntaxFiles=[
   'matok-core-final-v1.js',
   'matok-payroll-final-v1.js',
   'matok-ui-final-v1.js',
+  'matok-notifications-final-v1.js',
   'matok-access-final-v1.js',
   'matok-whatsapp-final-v1.js',
   'matok-health-final-v1.js',
