@@ -37,6 +37,8 @@
     if(!isAdmin())return;
     try{
       const {weekStart,week,assignments,settings}=await scheduleData();
+      if(!week){toast?.('אין שבוע שמור להדפסה');return}
+      if(!assignments.length){toast?.('אין שיבוצים שמורים — ההדפסה נעצרה כדי לא להפיק דף ריק');return}
       const map=new Map(SLOT_ORDER.map(s=>[s,[]]));
       assignments.forEach(a=>map.get(a.slot_key)?.push({name:a.staff?.full_name||'עובד',role:a.role_name||'מכירה'}));
       const cfg=new Map(settings.map(s=>[s.slot_key,s]));
