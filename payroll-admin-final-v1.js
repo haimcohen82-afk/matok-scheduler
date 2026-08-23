@@ -1,0 +1,83 @@
+(() => {
+  'use strict';
+  const VERSION='20260823-payroll-admin-final-1';
+  let installed=false,profiles=[],bulkBytes=null,bulkPages=[],busy=false;
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
+  const monthNow=()=>new Date().toISOString().slice(0,7);
+  const safe=v=>String(v||'').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,60)||'file';
+  const norm=v=>String(v??'').toLowerCase().replace(/[\u0591-\u05C7]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();
+  const toast2=msg=>{try{if(typeof toast==='function')return toast(msg)}catch(_){} alert(msg)};
+
+  async function ensurePdf(){
+    if(!window.pdfjsLib) await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js');
+    if(window.pdfjsLib) window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    if(!window.PDFLib) await loadScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+  }
+  function loadScript(src){return new Promise((res,rej)=>{if([...document.scripts].some(s=>s.src===src))return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+
+  function addStyles(){
+    if(document.getElementById('payrollAdminFinalStyles'))return;
+    const s=document.createElement('style');s.id='payrollAdminFinalStyles';s.textContent=`
+      .pafNav{display:flex;gap:6px;overflow:auto;margin-bottom:11px}.pafNav button{white-space:nowrap}.pafSub{display:none}.pafSub.active{display:block}
+      .pafGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.pafGrid label{display:grid;gap:4px;font-size:11px;font-weight:800}.pafGrid input,.pafGrid select,.pafGrid textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px;background:#fff}.pafStatus{padding:10px;border-radius:9px;background:var(--soft);margin-top:9px}.pafStatus.good{background:#eaf6ea;color:#2f6732}.pafStatus.bad{background:#fff0ed;color:#8f2e26}.pafPageRow{display:grid;grid-template-columns:75px 1fr 230px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px;background:#fff;margin-top:7px}.pafPageRow small{color:var(--muted)}.pafTable{overflow:auto}.pafTable table{width:100%;border-collapse:collapse;font-size:12px}.pafTable th,.pafTable td{padding:8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.pafTable th{background:var(--soft)}.pafActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+      @media(max-width:850px){.pafGrid{grid-template-columns:1fr 1fr}.pafPageRow{grid-template-columns:1fr}}
+      @media(max-width:480px){.pafGrid{grid-template-columns:1fr}.pafActions .btn{width:100%}}
+    `;document.head.appendChild(s);
+  }
+
+  function buildPanel(){
+    const admin=document.getElementById('admin');const tabs=admin?.querySelector('.adminTabs');if(!admin||!tabs)return false;
+    tabs.querySelectorAll('button').forEach(b=>{if(!b.dataset.pafFinal&&/שכר.*(מסמכים|בונוסים)|מסמכים.*שכר/.test((b.textContent||'').trim()))b.style.display='none'});
+    let btn=document.getElementById('payrollFinalTabBtn');
+    if(!btn){btn=document.createElement('button');btn.id='payrollFinalTabBtn';btn.dataset.pafFinal='1';btn.textContent='שכר ומסמכים';tabs.appendChild(btn);btn.onclick=openPanel;}
+    let panel=document.getElementById('payrollFinal');
+    if(!panel){panel=document.createElement('section');panel.id='payrollFinal';panel.className='panel';panel.innerHTML=panelHtml();admin.appendChild(panel);bindPanel();}
+    return true;
+  }
+
+  function panelHtml(){return `
+    <div class="pafNav">
+      <button class="btn primary" data-paf-sub="bulk">PDF מרוכז</button>
+      <button class="btn secondary" data-paf-sub="single">העלאה לעובד</button>
+      <button class="btn secondary" data-paf-sub="hours">שעות ובונוסים</button>
+      <button class="btn secondary" data-paf-sub="archive">ארכיון מסמכים</button>
+    </div>
+    <section id="paf-bulk" class="pafSub active"><article class="card"><h2>העלאת PDF מרוכז</h2><p>מעלים קובץ של רואה החשבון או דוח שעות מרוכז. המערכת מזהה כל עמוד, ואתה יכול לתקן ידנית לפני השמירה. כל עובד מקבל רק את העמודים ששויכו אליו.</p><div class="pafGrid"><label>סוג מסמך<select id="pafBulkType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות</option></select></label><label>חודש<input id="pafBulkPeriod" type="month" value="${monthNow()}"></label><label style="grid-column:span 2">PDF<input id="pafBulkFile" type="file" accept="application/pdf,.pdf"></label></div><div class="pafActions"><button class="btn primary" id="pafAnalyze">ניתוח וזיהוי</button><button class="btn secondary" id="pafSaveBulk" disabled>פירוק ושמירה לעובדים</button></div><div id="pafBulkStatus" class="pafStatus">טרם נבחר קובץ.</div><div id="pafBulkReview"></div></article></section>
+    <section id="paf-single" class="pafSub"><article class="card"><h2>העלאה ישירה לעובד</h2><p>מסלול מהיר ובטוח כשיש קובץ נפרד לעובד.</p><div class="pafGrid"><label>עובד/ת<select id="pafSingleStaff"></select></label><label>סוג מסמך<select id="pafSingleType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות</option></select></label><label>חודש<input id="pafSinglePeriod" type="month" value="${monthNow()}"></label><label>PDF<input id="pafSingleFile" type="file" accept="application/pdf,.pdf"></label></div><button class="btn primary" id="pafSingleSave" style="margin-top:10px">העלאה ושמירה לעובד</button><div id="pafSingleStatus" class="pafStatus">אין העלאה פעילה.</div></article></section>
+    <section id="paf-hours" class="pafSub"><article class="card"><h2>שעות ובונוסים</h2><div class="pafGrid"><label>עובד/ת<select id="pafHoursStaff"></select></label><label>חודש<input id="pafHoursPeriod" type="month" value="${monthNow()}"></label><label>שעות רגילות<input id="pafReg" type="number" min="0" step="0.01"></label><label>שעות נוספות<input id="pafOver" type="number" min="0" step="0.01"></label><label>שבת / חג<input id="pafHoliday" type="number" min="0" step="0.01"></label><label>בונוס ₪<input id="pafBonus" type="number" step="0.01"></label><label style="grid-column:span 2">הערת מנהל<input id="pafNote"></label></div><button class="btn primary" id="pafHoursSave" style="margin-top:10px">שמירת שעות ובונוס</button><div id="pafHoursStatus" class="pafStatus">מוכן להזנה.</div><div id="pafHoursList" class="pafTable" style="margin-top:12px"></div></article></section>
+    <section id="paf-archive" class="pafSub"><article class="card"><div class="employeeHead"><div><h2>ארכיון מסמכים</h2><small>כל המסמכים נשמרים באחסון פרטי ונגישים רק לעובד המשויך.</small></div><div><input id="pafArchivePeriod" type="month" value="${monthNow()}"></div></div><button class="btn secondary" id="pafRefreshArchive">רענון</button><div id="pafArchiveList" class="pafTable" style="margin-top:10px"></div></article></section>`}
+
+  function bindPanel(){
+    document.querySelectorAll('[data-paf-sub]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-paf-sub]').forEach(x=>{x.classList.toggle('primary',x===b);x.classList.toggle('secondary',x!==b)});document.querySelectorAll('#payrollFinal .pafSub').forEach(x=>x.classList.remove('active'));document.getElementById('paf-'+b.dataset.pafSub).classList.add('active');if(b.dataset.pafSub==='archive')loadArchive();if(b.dataset.pafSub==='hours')loadHoursList();});
+    document.getElementById('pafAnalyze').onclick=analyzeBulk;document.getElementById('pafSaveBulk').onclick=saveBulk;document.getElementById('pafSingleSave').onclick=saveSingle;document.getElementById('pafHoursSave').onclick=saveHours;document.getElementById('pafRefreshArchive').onclick=loadArchive;document.getElementById('pafArchivePeriod').onchange=loadArchive;
+  }
+
+  async function openPanel(){
+    document.querySelectorAll('#admin .adminTabs button').forEach(b=>b.classList.remove('active'));document.getElementById('payrollFinalTabBtn')?.classList.add('active');document.querySelectorAll('#admin>.panel').forEach(p=>p.classList.remove('active'));document.getElementById('payrollFinal')?.classList.add('active');await loadProfiles();
+  }
+  async function loadProfiles(){
+    const {data,error}=await supabaseClient.rpc('admin_list_payroll_profiles');if(error){console.error(error);toast2('טעינת העובדים נכשלה');return false}profiles=data||[];const opts=profiles.map(p=>`<option value="${p.staff_id}">${esc(p.full_name)}</option>`).join('');['pafSingleStaff','pafHoursStaff'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=opts});return true;
+  }
+  function autoMatch(text){const t=norm(text);let best='',score=0;profiles.forEach(p=>{const tokens=norm(p.full_name).split(' ').filter(x=>x.length>=2);const s=tokens.filter(x=>t.includes(x)).length;if(s>score&&s>=Math.max(1,tokens.length-1)){score=s;best=p.staff_id}});return best}
+
+  async function analyzeBulk(){
+    if(busy)return;const f=document.getElementById('pafBulkFile').files?.[0];if(!f)return toast2('יש לבחור PDF');busy=true;const st=document.getElementById('pafBulkStatus');st.className='pafStatus';st.textContent='מנתח את הקובץ…';try{if(!profiles.length)await loadProfiles();await ensurePdf();bulkBytes=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:bulkBytes.slice(0)}).promise;bulkPages=[];for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i),tc=await page.getTextContent(),text=tc.items.map(x=>x.str||'').join(' ');bulkPages.push({page:i,text,staff_id:autoMatch(text)})}renderBulkReview();document.getElementById('pafSaveBulk').disabled=false;st.className='pafStatus good';st.textContent=`זוהו ${bulkPages.length} עמודים. בדוק את השיוך לכל עמוד לפני השמירה.`}catch(e){console.error(e);st.className='pafStatus bad';st.textContent='ניתוח ה-PDF נכשל.'}finally{busy=false}}
+  function renderBulkReview(){const box=document.getElementById('pafBulkReview');const opts=id=>`<option value="">לא משויך</option>`+profiles.map(p=>`<option value="${p.staff_id}" ${String(p.staff_id)===String(id)?'selected':''}>${esc(p.full_name)}</option>`).join('');box.innerHTML=bulkPages.map((p,i)=>`<div class="pafPageRow"><b>עמוד ${p.page}</b><small>${esc(p.text.slice(0,170)||'לא נמצא טקסט בעמוד')}</small><select data-bulk-page="${i}">${opts(p.staff_id)}</select></div>`).join('');box.querySelectorAll('[data-bulk-page]').forEach(s=>s.onchange=()=>bulkPages[Number(s.dataset.bulkPage)].staff_id=s.value)}
+  async function uploadBlob(staffId,type,period,blob,name,pageFrom,pageTo){const path=`${staffId}/${period}/${type}/${Date.now()}-${safe(name)}`;const {error:upErr}=await supabaseClient.storage.from('employee-documents').upload(path,blob,{contentType:'application/pdf',upsert:false});if(upErr)throw upErr;const {error:regErr}=await supabaseClient.rpc('admin_register_employee_document',{p_staff_id:staffId,p_doc_type:type,p_period_label:period,p_storage_path:path,p_original_file_name:name,p_page_from:pageFrom,p_page_to:pageTo,p_retention_days:3650});if(regErr){await supabaseClient.storage.from('employee-documents').remove([path]);throw regErr}}
+  async function saveBulk(){
+    if(busy||!bulkBytes)return;const un=bulkPages.filter(p=>!p.staff_id);if(un.length)return toast2(`יש ${un.length} עמודים שעדיין לא שויכו לעובד`);busy=true;const st=document.getElementById('pafBulkStatus');st.textContent='מפרק ושומר…';try{await ensurePdf();const src=await PDFLib.PDFDocument.load(bulkBytes);const groups={};bulkPages.forEach(p=>(groups[p.staff_id]??=[]).push(p.page-1));const type=document.getElementById('pafBulkType').value,period=document.getElementById('pafBulkPeriod').value||monthNow(),orig=document.getElementById('pafBulkFile').files[0].name;let n=0;for(const [staffId,indexes] of Object.entries(groups)){const out=await PDFLib.PDFDocument.create();const pages=await out.copyPages(src,indexes);pages.forEach(p=>out.addPage(p));const bytes=await out.save();const who=profiles.find(p=>String(p.staff_id)===String(staffId));const fileName=`${type==='payslip'?'payslip':'hours'}-${period}-${who?.full_name||'employee'}.pdf`;await uploadBlob(staffId,type,period,new Blob([bytes],{type:'application/pdf'}),fileName,Math.min(...indexes)+1,Math.max(...indexes)+1);n++}st.className='pafStatus good';st.textContent=`נשמרו ${n} מסמכים אישיים. העובדים יכולים לראות אותם באזור האישי.`;bulkBytes=null;bulkPages=[];document.getElementById('pafBulkReview').innerHTML='';document.getElementById('pafSaveBulk').disabled=true;await loadArchive()}catch(e){console.error(e);st.className='pafStatus bad';st.textContent='שמירת המסמכים נכשלה. לא נמחק קובץ המקור שלך.'}finally{busy=false}}
+
+  async function saveSingle(){
+    if(busy)return;const staffId=document.getElementById('pafSingleStaff').value,file=document.getElementById('pafSingleFile').files?.[0],type=document.getElementById('pafSingleType').value,period=document.getElementById('pafSinglePeriod').value||monthNow(),st=document.getElementById('pafSingleStatus');if(!staffId||!file)return toast2('יש לבחור עובד וקובץ PDF');busy=true;st.textContent='מעלה…';try{await uploadBlob(staffId,type,period,file,file.name,1,1);st.className='pafStatus good';st.textContent='המסמך נשמר וזמין לעובד באזור האישי.';document.getElementById('pafSingleFile').value='';await loadArchive()}catch(e){console.error(e);st.className='pafStatus bad';st.textContent='העלאת המסמך נכשלה.'}finally{busy=false}}
+
+  async function saveHours(){
+    const staffId=document.getElementById('pafHoursStaff').value,period=document.getElementById('pafHoursPeriod').value||monthNow(),st=document.getElementById('pafHoursStatus');const num=id=>Number(document.getElementById(id).value||0);try{const {error}=await supabaseClient.rpc('admin_upsert_payroll_hours',{p_staff_id:staffId,p_period_label:period,p_regular_hours:num('pafReg'),p_overtime_hours:num('pafOver'),p_holiday_hours:num('pafHoliday'),p_bonus_amount:num('pafBonus'),p_manager_note:document.getElementById('pafNote').value||'',p_source_file:null});if(error)throw error;st.className='pafStatus good';st.textContent='השעות והבונוס נשמרו לעובד.';await loadHoursList()}catch(e){console.error(e);st.className='pafStatus bad';st.textContent='שמירת הנתונים נכשלה.'}}
+  async function loadHoursList(){const box=document.getElementById('pafHoursList');if(!box)return;const period=document.getElementById('pafHoursPeriod').value||monthNow();const {data,error}=await supabaseClient.rpc('admin_list_payroll_hours',{p_period:period});if(error){box.innerHTML='טעינת הנתונים נכשלה';return}box.innerHTML=(data||[]).length?`<table><thead><tr><th>עובד</th><th>רגילות</th><th>נוספות</th><th>שבת/חג</th><th>בונוס</th></tr></thead><tbody>${data.map(r=>`<tr><td>${esc(r.full_name)}</td><td>${r.regular_hours}</td><td>${r.overtime_hours}</td><td>${r.holiday_hours}</td><td>₪${Number(r.bonus_amount||0).toFixed(2)}</td></tr>`).join('')}</tbody></table>`:'אין נתונים לחודש זה.'}
+  async function loadArchive(){const box=document.getElementById('pafArchiveList');if(!box)return;const period=document.getElementById('pafArchivePeriod').value||monthNow();const {data,error}=await supabaseClient.rpc('admin_list_employee_documents_v2',{p_period:period});if(error){box.innerHTML='טעינת הארכיון נכשלה';return}const rows=data||[];box.innerHTML=rows.length?`<table><thead><tr><th>עובד</th><th>מסמך</th><th>תקופה</th><th>פעולות</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.full_name)}</td><td>${r.doc_type==='payslip'?'תלוש':'דוח שעות'}</td><td>${esc(r.period_label)}</td><td><button class="btn secondary" data-paf-open="${r.storage_path}">פתח</button> <button class="btn secondary" data-paf-delivered="${r.id}">סמן נמסר</button></td></tr>`).join('')}</tbody></table>`:'אין מסמכים לחודש זה.';box.querySelectorAll('[data-paf-open]').forEach(b=>b.onclick=()=>openAdminDoc(b.dataset.pafOpen));box.querySelectorAll('[data-paf-delivered]').forEach(b=>b.onclick=async()=>{const {error}=await supabaseClient.rpc('admin_mark_employee_document',{p_document_id:b.dataset.pafDelivered,p_action:'delivered'});if(error)return toast2('העדכון נכשל');toast2('סומן כנמסר');await loadArchive()})}
+  async function openAdminDoc(path){const {data,error}=await supabaseClient.storage.from('employee-documents').createSignedUrl(path,600);if(error||!data?.signedUrl)return toast2('פתיחת המסמך נכשלה');window.open(data.signedUrl,'_blank','noopener')}
+
+  function install(){if(!isAdmin())return;if(!buildPanel())return;if(!installed){installed=true;addStyles();loadProfiles()}}
+  setInterval(install,400);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,300));else setTimeout(install,300);
+})();
