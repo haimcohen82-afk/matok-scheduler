@@ -12,6 +12,7 @@ const syntaxFiles=[
   'matok-realtime-final-v1.js',
   'matok-admin-tools-final-v1.js',
   'matok-manager-home-final-v1.js',
+  'matok-availability-roster-final-v1.js',
   'build.mjs',
   'tests/smoke.mjs',
   'tests/schedule-regression.mjs'
