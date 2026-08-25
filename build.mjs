@@ -17,7 +17,7 @@ const MODULES=[
 ];
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
-const buildId=`20260825-stable-${commit}`;
+const buildId=`20260825-batch-assign-${commit}`;
 
 function findBalancedEnd(source,braceStart){
   let depth=0,quote='',escaped=false;
@@ -111,6 +111,45 @@ function stabilizeCore(code){
     loadAdminFinalData(start).then(()=>{loadAdminReportsFinal();loadHoursReportsFinal();window.initPayrollAdminFinal?.()}).catch(e=>{console.error('admin final init',e);toast?.('טעינת נתוני המנהל נכשלה')});
     bindFinalAdminTabs();
   `);
+  code=replaceFunctionBody(code,'setAssignmentFinal',`
+    const batchAssignVersion='MATOK_BATCH_ASSIGN_V1';
+    if(btn)btn.disabled=true;
+    try{
+      const s=staffById(staffId);
+      const fn=adminState.week?.status==='published'?'admin_set_published_assignment':'admin_set_assignment_v4';
+      const args=fn==='admin_set_published_assignment'
+        ?{p_week_start:adminState.weekStart,p_slot_key:slot,p_staff_id:staffId,p_assigned:assigned,p_role_name:s?.role_name||'מכירה'}
+        :{p_week_start:adminState.weekStart,p_slot_key:slot,p_staff_id:staffId,p_role_name:s?.role_name||'מכירה',p_assigned:assigned};
+      const {error}=await supabaseClient.rpc(fn,args);
+      if(error)throw error;
+
+      const rows=adminState.assignments=Array.isArray(adminState.assignments)?adminState.assignments:[];
+      const idx=rows.findIndex(a=>a.slot_key===slot&&String(a.staff_id)===String(staffId));
+      if(assigned){
+        const row={slot_key:slot,staff_id:staffId,role_name:s?.role_name||'מכירה',status:'approved'};
+        if(idx>=0)rows[idx]={...rows[idx],...row};
+        else rows.push(row);
+      }else if(idx>=0){
+        rows.splice(idx,1);
+      }
+
+      renderAdminScheduleFinal();
+      if(fromPicker){
+        renderCandidateFinal();
+        const modal=document.getElementById('mfCandidateModal');
+        if(modal&&!modal.classList.contains('show'))openModal?.('mfCandidateModal');
+      }
+      window.refreshAdminAvailabilityRoster?.();
+      toast?.(\`${'${s?.full_name||\'העובד\'}'} ${'${assigned?\'נוסף\':\'הוסר\'}'} מהסידור\`);
+      void batchAssignVersion;
+    }catch(e){
+      console.error(e);
+      toast?.('השינוי לא נשמר: '+(e?.message||'שגיאה'));
+    }finally{
+      if(btn)btn.disabled=false;
+    }
+  `);
+  code=code.replace('זמינות והגדרת יום מוצגות כמידע בלבד. למנהל יש הרשאה לשבץ כל עובד פעיל.','אפשר לשבץ כמה עובדים ברצף. אחרי שיבוץ העובד יורד מהרשימה ואתה נשאר במסך הזה. זמינות ויום קבוע הם מידע בלבד.');
   code=code.replace("setTimeout(()=>{if(isEmployee())initEmployeeUi();if(isAdmin())initAdminFinal()},1200);",'');
   return code;
 }
@@ -162,7 +201,7 @@ for(const required of [
   'admin_get_staff_login_status','admin_register_employee_document','employee_list_documents','mfHealthModal','matok-final-live-',
   'mfPrintScheduleBtn','mfEditHistoryModal','mfManagerWeeks','mfOpenCurrentWeek','settingsRows','supplies',
   'mfFinalEmployeeInit','mfFinalAdminInit','employee_get_schedule_notice','employee_mark_schedule_viewed','mfScheduleNotice',
-  'admin_get_week_availability_roster','mfRosterEmployee'
+  'admin_get_week_availability_roster','mfRosterEmployee','MATOK_BATCH_ASSIGN_V1'
 ])if(!html.includes(required))throw new Error(`production build missing required capability or shell dependency: ${required}`);
 
 await writeFile('dist/index.html',html,'utf8');
