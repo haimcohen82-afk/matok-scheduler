@@ -140,7 +140,7 @@ function stabilizeCore(code){
         if(modal&&!modal.classList.contains('show'))openModal?.('mfCandidateModal');
       }
       window.refreshAdminAvailabilityRoster?.();
-      toast?.(\`${'${s?.full_name||\'העובד\'}'} ${'${assigned?\'נוסף\':\'הוסר\'}'} מהסידור\`);
+      toast?.((s?.full_name||'העובד')+' '+(assigned?'נוסף':'הוסר')+' מהסידור');
       void batchAssignVersion;
     }catch(e){
       console.error(e);
@@ -205,6 +205,6 @@ for(const required of [
 ])if(!html.includes(required))throw new Error(`production build missing required capability or shell dependency: ${required}`);
 
 await writeFile('dist/index.html',html,'utf8');
-await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,generatedAt:new Date().toISOString()},null,2),'utf8');
+await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,generatedAt:new Date().toISOString()},null,2,'utf8'));
 console.log(`MATOK build complete: ${buildId}`);
 console.log(`Output: dist/index.html (${Buffer.byteLength(html)} bytes)`);
