@@ -17,7 +17,7 @@ const MODULES=[
 ];
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
-const buildId=`20260825-batch-assign-${commit}`;
+const buildId=`20260829-completion-${commit}`;
 
 function findBalancedEnd(source,braceStart){
   let depth=0,quote='',escaped=false;
