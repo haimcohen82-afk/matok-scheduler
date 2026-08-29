@@ -17,7 +17,7 @@ const MODULES=[
 ];
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
-const buildId=`20260829-completion-${commit}`;
+const buildId=`20260829-stable-rebuild-${commit}`;
 
 function findBalancedEnd(source,braceStart){
   let depth=0,quote='',escaped=false;
@@ -183,7 +183,7 @@ for(const file of MODULES){
   parts.push(`\n/* ===== ${basename(file)} ===== */\n${code}\n`);
 }
 
-const boot=`<meta name="matok-live-version" content="${buildId}">`;
+const boot=`<meta name="matok-live-version" content="${buildId}">\n<meta name="matok-architecture" content="single-production-build">`; 
 html=html.replace('</head>',`${boot}\n</head>`);
 html=html.replace('</body>',`<script>window.__MATOK_BUILD__=${JSON.stringify({buildId,commit,modules:MODULES})};<\/script>\n<script>\n${parts.join('\n')}\n<\/script>\n</body>`);
 
