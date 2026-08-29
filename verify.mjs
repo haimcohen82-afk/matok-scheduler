@@ -26,7 +26,7 @@ function run(args,label){
 await access('app-shell.html');
 const shell=await stat('app-shell.html');
 if(shell.size<10000)throw new Error('app-shell.html is unexpectedly small');
-try{await access('Index.html');throw new Error('legacy Index.html must not exist')}catch(e){if(e?.message==='legacy Index.html must not exist')throw e}
+for(const legacy of ['Index.html','index.html']){try{await access(legacy);throw new Error(`legacy ${legacy} must not exist`)}catch(e){if(e?.message===`legacy ${legacy} must not exist`)throw e}}
 
 for(const file of syntaxFiles) run(['--check',file],`syntax check: ${file}`);
 run(['build.mjs'],'production build');
