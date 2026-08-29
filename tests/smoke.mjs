@@ -32,6 +32,8 @@ const mustHave=[
   ['employee attendance action','שעות נוכחות'],
   ['employee bonus action','בונוסים'],
   ['employee messages action','הפניות שלי'],
+  ['employee simple prompt','מה ברצונך לעשות?'],
+  ['focused employee views','applyEmployeeSimpleMode'],
   ['admin schedule','mfAdminScheduleBody'],
   ['complete availability roster rpc','admin_get_week_availability_roster'],
   ['complete availability roster ui','mfRosterEmployee'],
@@ -48,7 +50,9 @@ const mustHave=[
   ['blank print protection','ההדפסה נעצרה כדי לא להפיק דף ריק'],
   ['schedule edit history','mfEditHistoryModal'],
   ['manager current/next week dashboard','mfManagerWeeks'],
-  ['current published week shortcut','mfOpenCurrentWeek']
+  ['current published week shortcut','mfOpenCurrentWeek'],
+  ['manager payroll upload shortcut','mfOpenPayrollPdf'],
+  ['manager payroll hours shortcut','mfOpenPayrollHours']
 ];
 for(const [name,token] of mustHave) if(!has(token)) fail(`missing ${name}: ${token}`);
 
