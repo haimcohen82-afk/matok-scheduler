@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-manager-home-4';
+  const VERSION='20260829-final-manager-home-5';
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const sunday=offset=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-d.getDay()+offset);return iso(d)};
@@ -13,8 +13,20 @@
   function ensure(){
     if(!isAdmin())return null;const overview=document.getElementById('overview');if(!overview)return null;
     let root=document.getElementById('mfManagerWeeks');if(root)return root;
-    root=document.createElement('section');root.id='mfManagerWeeks';root.innerHTML='<div class="mfManagerHomeHead"><div><b>מרכז הסידור</b><small style="display:block;color:var(--muted)">השבוע הפעיל והשבוע הבא מופרדים כדי שלא יהיה בלבול.</small></div><button type="button" class="btn secondary" id="mfManagerWeeksRefresh">רענון</button></div><div class="mfManagerWeeks"><article class="mfWeekHero current" id="mfCurrentWeekCard"><small>השבוע הפעיל</small><h2>טוען…</h2></article><article class="mfWeekHero next" id="mfNextWeekCard"><small>השבוע הבא</small><h2>טוען…</h2></article></div>';
-    root.dataset.mfMounted='1';overview.prepend(root);document.getElementById('mfManagerWeeksRefresh').onclick=load;return root;
+    root=document.createElement('section');root.id='mfManagerWeeks';root.innerHTML='<div class="mfManagerHomeHead"><div><b>מרכז הסידור</b><small style="display:block;color:var(--muted)">השבוע הפעיל והשבוע הבא מופרדים כדי שלא יהיה בלבול.</small></div><button type="button" class="btn secondary" id="mfManagerWeeksRefresh">רענון</button></div><div class="mfManagerWeeks"><article class="mfWeekHero current" id="mfCurrentWeekCard"><small>השבוע הפעיל</small><h2>טוען…</h2></article><article class="mfWeekHero next" id="mfNextWeekCard"><small>השבוע הבא</small><h2>טוען…</h2></article></div><article class="mfWeekHero" id="mfPayrollQuick"><small>שכר ונוכחות</small><h2>תלושים, דוחות שעות ובונוסים</h2><p>כניסה מהירה לפורטל השכר בלי לחפש בתפריטים.</p><div class="actions"><button type="button" class="btn primary" id="mfOpenPayrollPdf">העלאת תלושים / דוחות</button><button type="button" class="btn secondary" id="mfOpenPayrollHours">שעות ובונוסים</button></div></article>';
+    root.dataset.mfMounted='1';overview.prepend(root);document.getElementById('mfManagerWeeksRefresh').onclick=load;
+    const openPayroll=sub=>{
+      const tab=document.querySelector('.adminTabs [data-target="payrollFinal"]');
+      tab?.click();
+      setTimeout(()=>{
+        const btn=document.querySelector(`#payrollFinal [data-mp="${sub}"]`);
+        btn?.click();
+        document.getElementById('payrollFinal')?.scrollIntoView({behavior:'smooth',block:'start'});
+      },80);
+    };
+    document.getElementById('mfOpenPayrollPdf').onclick=()=>openPayroll('pdf');
+    document.getElementById('mfOpenPayrollHours').onclick=()=>openPayroll('hours');
+    return root;
   }
 
   async function weekInfo(weekStart){
