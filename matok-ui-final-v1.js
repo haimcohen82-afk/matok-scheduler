@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260819-final-ui-3';
+  const VERSION='20260829-final-ui-4';
 
   function addStyles(){
     if(document.getElementById('matokFinalUiStyles')) return;
@@ -115,26 +115,77 @@
     }catch(_){ }
   }
 
+  function applyEmployeeSimpleMode(mode=''){
+    try{
+      if(appSession?.type!=='employee') return;
+      const root=document.getElementById('worker');if(!root)return;
+      root.dataset.mfSimpleMode=mode||'';
+      const docs=document.getElementById('mfEmployeeDocumentsCard');
+      const payroll=document.getElementById('mfEmployeePayrollCard');
+      const hoursPanel=document.getElementById('mfHoursPanel');
+      const hoursIssue=hoursPanel?[...hoursPanel.children].find(x=>x!==docs&&x!==payroll):null;
+      const contact=document.getElementById('mfContactPanel');
+      const shortage=document.getElementById('mfShortageCard');
+      const messages=contact?[...contact.querySelectorAll(':scope>.mfReportGrid>article')].find(x=>x!==shortage):null;
+
+      [docs,payroll,hoursIssue,shortage,messages].forEach(x=>{if(x)x.style.display='';});
+      document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts span').forEach(x=>x.style.display='');
+
+      if(mode==='documents'){
+        if(payroll)payroll.style.display='none';
+        if(hoursIssue)hoursIssue.style.display='none';
+      }else if(mode==='attendance'){
+        if(docs)docs.style.display='none';
+        if(hoursIssue)hoursIssue.style.display='none';
+        document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts span').forEach(x=>{if((x.textContent||'').includes('בונוס'))x.style.display='none';});
+        const h=payroll?.querySelector('h2');if(h)h.textContent='שעות נוכחות';
+        const p=payroll?.querySelector('p');if(p)p.textContent='השעות שנשמרו עבורך לפי חודש.';
+      }else if(mode==='bonus'){
+        if(docs)docs.style.display='none';
+        if(hoursIssue)hoursIssue.style.display='none';
+        document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts span').forEach(x=>{if(!(x.textContent||'').includes('בונוס'))x.style.display='none';});
+        const h=payroll?.querySelector('h2');if(h)h.textContent='בונוסים';
+        const p=payroll?.querySelector('p');if(p)p.textContent='הבונוסים שנשמרו עבורך לפי חודש.';
+      }else{
+        const h=payroll?.querySelector('h2');if(h)h.textContent='שעות ובונוסים';
+        const p=payroll?.querySelector('p');if(p)p.textContent='נתונים שנשמרו עבורך במערכת. התלוש הרשמי הוא הקובע.';
+      }
+
+      if(mode==='shortage'&&messages)messages.style.display='none';
+      if(mode==='messages'&&shortage)shortage.style.display='none';
+    }catch(_){ }
+  }
+
   function polishEmployeeMenu(){
     try{
       if(appSession?.type!=='employee') return;
       const home=document.getElementById('mfHome');if(!home)return;
+      const welcome=home.querySelector('.mfWelcome p');if(welcome)welcome.textContent='מה ברצונך לעשות?';
       const docs=home.querySelector('.mfAction.docs');
       if(docs && docs.dataset.mfPolished!=='1'){
         docs.dataset.mfPolished='1';
         const b=docs.querySelector('b'),small=docs.querySelector('small');
         if(b)b.textContent='הנתונים שלי';if(small)small.textContent='תלושים, דוחות ומסמכים אישיים';
+        docs.addEventListener('click',()=>setTimeout(()=>applyEmployeeSimpleMode('documents'),40));
       }
       const hours=home.querySelector('.mfAction.hours');
       if(hours && hours.dataset.mfPolished!=='1'){
         hours.dataset.mfPolished='1';
         const b=hours.querySelector('b'),small=hours.querySelector('small');
         if(b)b.textContent='שעות נוכחות';if(small)small.textContent='צפייה בשעות שנשמרו עבורך';
+        hours.addEventListener('click',()=>setTimeout(()=>applyEmployeeSimpleMode('attendance'),40));
         const bonus=hours.cloneNode(true);bonus.classList.remove('hours');bonus.classList.add('messages');bonus.removeAttribute('data-mf-section');bonus.removeAttribute('data-mf-focus');bonus.dataset.mfBonus='1';
         const bb=bonus.querySelector('b'),bs=bonus.querySelector('small'),bi=bonus.querySelector('.mfActionIcon');if(bb)bb.textContent='בונוסים';if(bs)bs.textContent='צפייה בבונוסים לפי חודש';if(bi)bi.textContent='₪';
-        bonus.onclick=()=>{hours.click();setTimeout(()=>document.getElementById('mfEmployeePayrollCard')?.scrollIntoView({behavior:'smooth',block:'start'}),120)};
+        bonus.onclick=()=>{hours.click();setTimeout(()=>{applyEmployeeSimpleMode('bonus');document.getElementById('mfEmployeePayrollCard')?.scrollIntoView({behavior:'smooth',block:'start'});},120)};
         hours.after(bonus);
       }
+      const shortage=home.querySelector('.mfAction.report');
+      if(shortage&&shortage.dataset.mfSimpleBound!=='1'){shortage.dataset.mfSimpleBound='1';shortage.addEventListener('click',()=>setTimeout(()=>applyEmployeeSimpleMode('shortage'),40));}
+      const messages=home.querySelector('.mfAction.messages:not([data-mf-bonus])');
+      if(messages&&messages.dataset.mfSimpleBound!=='1'){messages.dataset.mfSimpleBound='1';messages.addEventListener('click',()=>setTimeout(()=>applyEmployeeSimpleMode('messages'),40));}
+      home.querySelectorAll('.mfAction.schedule,.mfAction.availability').forEach(b=>{if(b.dataset.mfSimpleBound==='1')return;b.dataset.mfSimpleBound='1';b.addEventListener('click',()=>applyEmployeeSimpleMode(''));});
+      const back=document.getElementById('mfBackHome');if(back&&back.dataset.mfSimpleBound!=='1'){back.dataset.mfSimpleBound='1';back.addEventListener('click',()=>applyEmployeeSimpleMode(''));}
+      const activeMode=document.getElementById('worker')?.dataset.mfSimpleMode||'';if(activeMode)applyEmployeeSimpleMode(activeMode);
     }catch(_){ }
   }
 
