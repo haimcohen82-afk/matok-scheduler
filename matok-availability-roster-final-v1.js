@@ -55,7 +55,7 @@
         const chips=submittedNow&&x.items.length?`<div class="mfAvailability">${x.items.map(a=>`<span class="mfAvailChip ${esc(a.status)}">${esc(slotLabel(a.slot))} · ${esc(statusLabel(a.status))}</span>`).join('')}</div>`:'';
         const last=!submittedNow&&x.lastWeek?`<div class="mfRosterLast">הגשה אחרונה במערכת: שבוע ${esc(fmtWeek(x.lastWeek))}</div>`:'';
         return `<div class="mfRosterEmployee ${submittedNow?'':'missing'}" data-mf-roster-staff="${esc(x.id)}"><div class="mfRosterEmployeeHead"><div><b>${esc(x.name)}</b>${submittedNow?`<small>נשלח ${new Date(x.submittedAt).toLocaleString('he-IL')}</small>`:'<small>אין הגשה שמורה לשבוע הזה</small>'}</div><span class="mfStatus ${submittedNow?'ok':'wait'}">${submittedNow?'הוגש':'טרם הוגש'}</span></div>${chips}${x.note?`<p>${esc(x.note)}</p>`:''}${last}</div>`;
-      }).join('')||'<div class="mfEmpty">לא נמצאו עובדים פעילים.</div>';
+      }).join('')||'<div class="mfEmpty">לא נמצאו עובדים פעילים.</div>'}`;
       box.dataset.mfRosterWeek=week;
       lastWeek=week;
     }catch(e){
