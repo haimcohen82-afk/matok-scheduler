@@ -2,6 +2,13 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1A1A2E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MATOK עבודה">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/favicon.svg">
 <title>MATOK סידור עבודה</title>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&family=Assistant:wght@300;400;600;700&display=swap");
@@ -36,11 +43,13 @@ button.pressed,button.pressed:disabled{background:#aaa7a1!important;color:#f5f5f
 .authGate{position:fixed;inset:0;background:#1a1a2ef2;z-index:999;display:grid;place-items:center;padding:16px}.authGate.hidden{display:none}.authBox{width:min(430px,100%);background:#fff;border-radius:18px;padding:22px;box-shadow:0 22px 60px #0005}.authBox h1{margin:0 0 4px}.authBox p{color:var(--muted);margin:0 0 16px}.authTabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}.authTabs button{border:1px solid var(--line);background:var(--soft);padding:10px;border-radius:9px;font-weight:900}.authTabs button.active{background:var(--ink);color:#fff}.authPane{display:none;gap:9px}.authPane.active{display:grid}.sessionBar{position:fixed;left:12px;bottom:12px;z-index:35;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 10px;box-shadow:var(--shadow);font-size:11px}.sessionBar button{border:0;background:transparent;font-weight:900;color:var(--danger)}
 
 .shift.disabled{opacity:.48;background:#f7f4ef}.shift.disabled .choices{display:none}.weekNavMini{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.weekNavMini .pill{margin-inline-start:auto}.submissionState{font-weight:800;color:#2f6732}.employee .danger.soft{background:#fff7f5}.publishedBox .item{margin-top:8px}
+.installApp{display:none;border:1px solid #ffffff45;background:#fff;color:var(--ink);padding:7px 11px;border-radius:9px;font-weight:900;white-space:nowrap}.installApp.show{display:inline-flex}
+@media(max-width:560px){.installApp{position:fixed;left:12px;bottom:56px;z-index:40;box-shadow:var(--shadow)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<header class="top"><div class="brand"><b>MATOK</b><span>BASIC</span></div><div class="stripes"><i></i><i></i><i></i><i></i><i></i></div><div class="title"><b>סידור עבודה</b><small>עובדים · זמינות · שעות · חוסרים</small></div><div class="switch"><button id="workerBtn" class="active">עובד</button><button id="adminBtn">מנהל</button></div></header>
+<header class="top"><div class="brand"><b>MATOK</b><span>BASIC</span></div><div class="stripes"><i></i><i></i><i></i><i></i><i></i></div><div class="title"><b>סידור עבודה</b><small>עובדים · זמינות · שעות · חוסרים</small></div><button id="installAppBtn" class="installApp" type="button">התקנת המערכת</button><div class="switch"><button id="workerBtn" class="active">עובד</button><button id="adminBtn">מנהל</button></div></header>
 <div class="notice"><b>מערכת פעילה:</b> המערכת מחוברת לענן. נתוני עובדים, זמינות ושיבוצים נשמרים ב-Supabase.</div>
 <main class="wrap">
 <section id="worker" class="view active">
@@ -73,6 +82,24 @@ button.pressed,button.pressed:disabled{background:#aaa7a1!important;color:#f5f5f
 <div id="sessionBar" class="sessionBar" style="display:none"><span id="sessionName"></span> · <button onclick="logoutSystem()">יציאה</button></div>
 <div class="toast" id="toast"></div>
 <script>
+let deferredInstallPrompt=null;
+const installAppBtn=document.getElementById('installAppBtn');
+window.addEventListener('beforeinstallprompt',event=>{
+  event.preventDefault();
+  deferredInstallPrompt=event;
+  installAppBtn?.classList.add('show');
+});
+installAppBtn?.addEventListener('click',async()=>{
+  if(!deferredInstallPrompt)return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt=null;
+  installAppBtn.classList.remove('show');
+});
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  installAppBtn?.classList.remove('show');
+});
 const SUPABASE_URL='https://yzipxcjijvmfasewjrov.supabase.co';
 const SUPABASE_KEY='sb_publishable_FElcaHVc65ILwkGqqYBJGA_dTGZIhVY';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
