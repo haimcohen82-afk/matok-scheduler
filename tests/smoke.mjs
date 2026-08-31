@@ -74,4 +74,9 @@ for(const demo of [
 const versionMatches=[...html.matchAll(/matok-live-version/g)].length;
 if(versionMatches!==1) fail(`expected one build version marker, found ${versionMatches}`);
 
+const buildMarker=html.indexOf('window.__MATOK_BUILD__');
+const shellTailMarker=html.indexOf("document.getElementById('settingsRows')");
+if(buildMarker<0||shellTailMarker<0) fail('missing production build or shell tail marker');
+if(buildMarker<shellTailMarker) fail('production modules were injected inside the shell script instead of before the final body close');
+
 console.log('MATOK smoke checks passed');
