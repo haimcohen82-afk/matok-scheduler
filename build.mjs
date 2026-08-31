@@ -185,7 +185,10 @@ for(const file of MODULES){
 
 const boot=`<meta name="matok-live-version" content="${buildId}">\n<meta name="matok-architecture" content="single-production-build">`; 
 html=html.replace('</head>',`${boot}\n</head>`);
-html=html.replace('</body>',`<script>window.__MATOK_BUILD__=${JSON.stringify({buildId,commit,modules:MODULES})};<\/script>\n<script>\n${parts.join('\n')}\n<\/script>\n</body>`);
+const finalBodyClose=html.lastIndexOf('</body>');
+if(finalBodyClose<0)throw new Error('missing final </body> in app shell');
+const productionScripts=`<script>window.__MATOK_BUILD__=${JSON.stringify({buildId,commit,modules:MODULES})};<\/script>\n<script>\n${parts.join('\n')}\n<\/script>\n`;
+html=html.slice(0,finalBodyClose)+productionScripts+html.slice(finalBodyClose);
 
 const forbidden=[
   'schedule-pro.js','schedule-pro-v2.js','schedule-pro-v3.js','schedule-assignment-v3.js',
