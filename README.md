@@ -72,3 +72,12 @@ The smoke test requires critical login, scheduling, secure synchronization, repo
 ## Deployment
 
 `netlify.toml` runs `node verify.mjs` and publishes `dist/`. Cache is disabled for the application and `version.json`, so a deployment can be identified precisely from the manager health check.
+
+
+## 17-request stabilization pass
+
+The September 2 stabilization pass locks the requested workflows into CI. In addition to the normal smoke and schedule-regression suites, `tests/requirements-17.mjs` verifies the employee circular home, payroll/document portal, stable employee login and recovery, current published schedule, post-publication manager editing and overrides, reports/replies/archive, demo-data removal, employee reporting reminder, archived published-week availability, WhatsApp guided delivery, staff summary, mobile schedule navigation, deploy version/health markers, consolidated production architecture, and preservation of the existing employee workflows.
+
+Published-week availability is retained for history and summaries but removed from the active manager work queue. Employee payroll/document data is loaded once at session startup and again only when the relevant view is opened/focused; the old repeated RPC loop is prohibited by the verification suite.
+
+True unattended WhatsApp sending is not performed by the web app. The production flow opens a guided queue because sending without user interaction requires an approved WhatsApp Business API/provider.
