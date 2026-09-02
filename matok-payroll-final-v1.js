@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260901-final-payroll-2';
+  const VERSION='20260902-final-payroll-3';
   let profiles=[],hoursRows=[],docRows=[],pdfBytes=null,pdfPages=[],staff=[];
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const norm=v=>String(v??'').toLowerCase().replace(/[\u0591-\u05C7]/g,'').replace(/[״”]/g,'"').replace(/[׳’]/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();
@@ -151,6 +151,30 @@
   async function openEmployeeDoc(id,download){const popup=download?null:window.open('about:blank','_blank');try{const res=await fetch(`${SUPABASE_URL}/functions/v1/employee-document-link`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},body:JSON.stringify({staff_id:appSession.user.id,username:appSession.username,code:appSession.code,document_id:id})}),data=await res.json();if(!res.ok||!data.url)throw new Error(data.error||'open_failed');if(download){const rr=await fetch(data.url),blob=await rr.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=data.file_name||'document.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}else if(popup)popup.location.href=data.url;else window.open(data.url,'_blank')}catch(e){if(popup)popup.close();toast?.('פתיחת המסמך נכשלה')}}
   async function loadEmployeePayrollFinal(){const box=document.getElementById('mfEmployeePayroll');if(!box||!isEmployee())return;box.innerHTML='<small>טוען…</small>';const {data,error}=await supabaseClient.rpc('employee_list_payroll_hours',{p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code});if(error){box.innerHTML='<div class="mfEmpty">טעינת נתוני השעות נכשלה.</div>';return}const rows=data||[];box.innerHTML=rows.length?rows.map(r=>`<div class="mpWorkerRow"><b>${esc(r.period_label)}</b><div class="mpWorkerFacts"><span>רגילות: ${r.regular_hours}</span><span>נוספות: ${r.overtime_hours}</span><span>שבת/חג: ${r.holiday_hours}</span><span>בונוס: ₪${Number(r.bonus_amount||0).toFixed(2)}</span></div>${r.manager_note?`<small>${esc(r.manager_note)}</small>`:''}</div>`).join(''):'<div class="mfEmpty">אין עדיין נתוני שעות ובונוסים בארכיון שלך.</div>'}
   function initPayrollAdminFinal(){if(!isAdmin())return;addStyles();if(!ensureAdminTab())return;adminHtml();getStaff().then(fillStaffSelect);loadDash()}
-  addStyles();let tries=0;const t=setInterval(()=>{tries++;if(isAdmin())initPayrollAdminFinal();if(isEmployee()){loadEmployeeDocumentsFinal();loadEmployeePayrollFinal()}if(tries>80)clearInterval(t)},250);
+  let payrollBootKey='';
+  function bootPayrollFinal(){
+    addStyles();
+    if(isAdmin()){initPayrollAdminFinal();return true;}
+    if(isEmployee()){
+      const key=String(appSession?.user?.id||'')+'|'+String(appSession?.username||'');
+      if(key&&payrollBootKey!==key){
+        payrollBootKey=key;
+        loadEmployeeDocumentsFinal();
+        loadEmployeePayrollFinal();
+      }
+      return true;
+    }
+    return false;
+  }
+  let bootTries=0;
+  const bootTimer=setInterval(()=>{bootTries++;if(bootPayrollFinal()||bootTries>40)clearInterval(bootTimer)},250);
+  window.addEventListener('focus',()=>{
+    if(!isEmployee())return;
+    const hours=document.getElementById('hours');
+    if(hours?.classList.contains('active')){
+      loadEmployeeDocumentsFinal();
+      loadEmployeePayrollFinal();
+    }
+  });
   window.initPayrollAdminFinal=initPayrollAdminFinal;window.loadEmployeeDocumentsFinal=loadEmployeeDocumentsFinal;window.loadEmployeePayrollFinal=loadEmployeePayrollFinal;
 })();
