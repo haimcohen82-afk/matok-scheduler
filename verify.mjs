@@ -15,7 +15,8 @@ const syntaxFiles=[
   'matok-availability-roster-final-v1.js',
   'build.mjs',
   'tests/smoke.mjs',
-  'tests/schedule-regression.mjs'
+  'tests/schedule-regression.mjs',
+  'tests/requirements-17.mjs'
 ];
 
 function run(args,label){
@@ -32,4 +33,5 @@ for(const file of syntaxFiles) run(['--check',file],`syntax check: ${file}`);
 run(['build.mjs'],'production build');
 run(['tests/smoke.mjs'],'smoke checks');
 run(['tests/schedule-regression.mjs'],'schedule regression checks');
+run(['tests/requirements-17.mjs'],'17 requirement checks');
 console.log('MATOK production verification passed');
