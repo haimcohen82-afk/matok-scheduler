@@ -11,7 +11,7 @@ const requirements=[
   [4,'כניסת עובד יציבה ושחזור קוד',['employee_login','employee_validate_session','admin_get_staff_login_status','admin_issue_staff_credentials_v2','mfEmployeeLoginHelp','autocomplete="off" enterkeyhint="done"']],
   [5,'צפייה בסידור המפורסם של השבוע הנוכחי',['employee_get_current_schedule_v2','mfPublishedSchedule','employee_get_schedule_notice']],
   [6,'עריכת סידור שכבר פורסם',['admin_set_published_assignment','הסידור מפורסם ופתוח לעריכת מנהל']],
-  [7,'עקיפת זמינות ויום קבוע למנהל בלבד',['למנהל יש הרשאה לשבץ כל עובד פעיל','admin_set_published_assignment']],
+  [7,'עקיפת זמינות ויום קבוע למנהל בלבד',['זמינות ויום קבוע הם מידע בלבד.','admin_set_published_assignment']],
   [8,'פניות: צפיתי, תגובה וארכיון',['admin_mark_staff_report_viewed','admin_reply_staff_report','admin_archive_staff_report','employee_get_reports_v2']],
   [9,'ללא נתוני דמו במוצר',['single-production-build']],
   [10,'תזכורת לעובדים לדווח חוסר/תקלה/שיפור',['חשוב לנו שתעדכני אותנו.','דיווח / חוסר בחנות']],
