@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260825-availability-roster-1';
+  const VERSION='20260902-availability-roster-2';
   let busy=false;
   let lastWeek='';
   let timer=null;
@@ -35,6 +35,13 @@
     const week=typeof adminWeekStart!=='undefined'&&adminWeekStart?String(adminWeekStart):'';
     if(!box||!week)return;
     if(!force&&lastWeek===week&&box.querySelector('.mfRosterEmployee'))return;
+    const weekRecord=typeof currentWeekRecord!=='undefined'?currentWeekRecord:null;
+    if(weekRecord?.week_start===week&&weekRecord?.status==='published'){
+      box.innerHTML='<div class="mfPublishedAvailabilityHidden"><b>הזמינות של השבוע שפורסם הועברה להיסטוריה.</b><br>היא נשמרת לסיכומים, אבל לא מוצגת כאן כהגשה פעילה. המשך העבודה הוא על השבוע הבא.<div style="margin-top:9px"><button type="button" class="btn primary" id="mfRosterNextWeek">מעבר לשבוע הבא</button></div></div>';
+      document.getElementById('mfRosterNextWeek').onclick=()=>document.getElementById('mfNextWeek')?.click();
+      lastWeek=week;
+      return;
+    }
     busy=true;
     try{
       const {data,error}=await supabaseClient.rpc('admin_get_week_availability_roster',{p_week_start:week});
