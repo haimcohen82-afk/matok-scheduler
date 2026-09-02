@@ -44,6 +44,8 @@ const mustHave=[
   ['unsubmitted employee state','טרם הוגש'],
   ['payroll portal','payrollFinal'],
   ['payroll PDF analysis','mpAnalyzePdf'],
+  ['payroll upload choice','mpUploadChoice'],
+  ['employee payroll destination copy','איפה העובדים רואים?'],
   ['payroll PDF split and save','mpSavePdf'],
   ['payroll OCR fallback','Tesseract.recognize'],
   ['payroll confidence review','mpConfidence'],
