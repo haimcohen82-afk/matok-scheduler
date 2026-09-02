@@ -28,6 +28,7 @@ const mustHave=[
   ['private employee document link','employee-document-link'],
   ['employee home','mfHome'],
   ['round employee actions','.mfAction{'],
+  ['employee circular menu shape','border-radius:50%;aspect-ratio:1/1'],
   ['employee schedule action','צפייה בסידור עבודה'],
   ['employee availability action','הגשת משמרות'],
   ['employee shortage action','דיווח / חוסר בחנות'],
