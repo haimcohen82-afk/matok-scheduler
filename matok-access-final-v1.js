@@ -153,6 +153,7 @@
     keepAuthenticatedGateClosed();
     addAdminEntry();
     openAdminIntent();
+    mcAccessEnforce();
   }
 
   let timer=null;
