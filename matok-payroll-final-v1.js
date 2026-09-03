@@ -235,4 +235,6 @@
     if(appSession?.type==='employee')window.loadEmployeePayrollFinal=mcLoadEmployeePayrollV2;
   }
   window.loadEmployeePayrollControl=mcLoadEmployeePayrollV2;
+  let mcPayrollTimer=null;new MutationObserver(()=>{clearTimeout(mcPayrollTimer);mcPayrollTimer=setTimeout(mcPayrollEnforce,70)}).observe(document.documentElement,{childList:true,subtree:true});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(mcPayrollEnforce,220),{once:true});else setTimeout(mcPayrollEnforce,160);
 })();
