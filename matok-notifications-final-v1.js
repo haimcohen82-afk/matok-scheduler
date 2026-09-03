@@ -82,6 +82,7 @@
       ensureUi();
       getNotice();
     }
+    mcMessagesEnforce();
   }
 
   window.refreshEmployeeScheduleNotice=getNotice;
