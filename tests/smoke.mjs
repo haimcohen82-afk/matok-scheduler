@@ -62,7 +62,17 @@ const mustHave=[
   ['manager current/next week dashboard','mfManagerWeeks'],
   ['current published week shortcut','mfOpenCurrentWeek'],
   ['manager payroll upload shortcut','mfOpenPayrollPdf'],
-  ['manager payroll hours shortcut','mfOpenPayrollHours']
+  ['manager payroll hours shortcut','mfOpenPayrollHours'],
+  ['payroll access controls','admin_get_portal_access_controls'],
+  ['employee payroll access enforcement','employee_get_portal_access'],
+  ['manager public/private messages','admin_send_manager_message'],
+  ['employee manager messages','employee_list_manager_messages'],
+  ['employee message replies','employee_reply_manager_message'],
+  ['employee usage analytics','admin_employee_usage_summary'],
+  ['bonus calculation v2','admin_upsert_payroll_hours_v2'],
+  ['access analytics runtime','MATOK_ACCESS_ANALYTICS_V1'],
+  ['manager messages runtime','MATOK_MANAGER_MESSAGES_V1'],
+  ['bonus formula runtime','MATOK_BONUS_FORMULA_V1']
 ];
 for(const [name,token] of mustHave) if(!has(token)) fail(`missing ${name}: ${token}`);
 
