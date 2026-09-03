@@ -177,4 +177,62 @@
     }
   });
   window.initPayrollAdminFinal=initPayrollAdminFinal;window.loadEmployeeDocumentsFinal=loadEmployeeDocumentsFinal;window.loadEmployeePayrollFinal=loadEmployeePayrollFinal;
+
+  // MATOK_BONUS_FORMULA_V1
+  const mcBonusLabel=m=>({manual:'הזנה ידנית',hourly:'לפי שעות × תעריף',sales_above_target_pct:'אחוז מהמכירות מעל היעד',target_fixed:'סכום קבוע בעמידה ביעד'}[m]||'הזנה ידנית');
+  function mcBonusFormula(m,d){
+    d=d||{};
+    if(m==='hourly')return Number(d.qualifying_hours||0)+' שעות × ₪'+Number(d.rate_per_hour||0).toFixed(2);
+    if(m==='sales_above_target_pct')return '('+Number(d.actual_sales||0).toLocaleString('he-IL')+' − יעד '+Number(d.target_sales||0).toLocaleString('he-IL')+') × '+Number(d.percent||0)+'%';
+    if(m==='target_fixed')return 'בפועל '+Number(d.actual_sales||0).toLocaleString('he-IL')+' מול יעד '+Number(d.target_sales||0).toLocaleString('he-IL')+' · בונוס קבוע ₪'+Number(d.fixed_amount||0).toFixed(2);
+    return 'הוזן ידנית: ₪'+Number(d.manual_amount||0).toFixed(2);
+  }
+  function mcBonusPreview(){
+    const m=document.getElementById('mcBonusMethod')?.value||'manual',manual=Number(document.getElementById('mcBonusManual')?.value||0),rate=Number(document.getElementById('mcBonusRate')?.value||0),base=Number(document.getElementById('mcBonusBase')?.value||document.getElementById('mpRegular')?.value||0),target=Number(document.getElementById('mcBonusTarget')?.value||0),actual=Number(document.getElementById('mcBonusActual')?.value||0),fixed=Number(document.getElementById('mcBonusFixed')?.value||0);
+    let amount=manual,formula='הוזן ידנית';
+    if(m==='hourly'){amount=base*rate;formula=base+' שעות × ₪'+rate.toFixed(2)}
+    if(m==='sales_above_target_pct'){amount=Math.max(actual-target,0)*rate/100;formula='('+actual.toLocaleString('he-IL')+' − '+target.toLocaleString('he-IL')+') × '+rate+'%'}
+    if(m==='target_fixed'){amount=actual>=target?fixed:0;formula=actual.toLocaleString('he-IL')+' מול יעד '+target.toLocaleString('he-IL')+' → '+(actual>=target?'עמד ביעד':'לא עמד ביעד')}
+    const box=document.getElementById('mcBonusFormula');if(box)box.innerHTML='<b>בונוס מחושב: ₪'+amount.toFixed(2)+'</b><div class="mcFormulaLine">'+esc(formula)+'</div>';
+    const legacy=document.getElementById('mpBonus');if(legacy)legacy.value=amount.toFixed(2);
+  }
+  function mcEnsureBonusUi(){
+    if(appSession?.type!=='admin')return;
+    const section=document.getElementById('mp-hours');if(!section||document.getElementById('mcBonusCalc'))return;
+    if(!document.getElementById('mcBonusStyles')){const s=document.createElement('style');s.id='mcBonusStyles';s.textContent='.mcBonusCalc{border:1px solid #d8c48b;background:#fff9e9;border-radius:12px;padding:11px;margin-top:10px}.mcBonusGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.mcBonusGrid label{font-size:10px;font-weight:800}.mcBonusFormula{margin-top:8px;padding:9px;border-radius:9px;background:#fff;border:1px solid #e5d7ab}.mcFormulaLine{font-size:10px;color:var(--muted);margin-top:3px}@media(max-width:650px){.mcBonusGrid{grid-template-columns:1fr 1fr}}@media(max-width:430px){.mcBonusGrid{grid-template-columns:1fr}}';document.head.appendChild(s)}
+    const grid=section.querySelector('.mpGrid');if(!grid)return;const old=document.getElementById('mpBonus');if(old)old.closest('label').style.display='none';
+    const box=document.createElement('div');box.id='mcBonusCalc';box.className='mcBonusCalc';
+    box.innerHTML='<b>אופן חישוב הבונוס</b><div class="mcBonusGrid" style="margin-top:8px"><label>שיטה<select id="mcBonusMethod"><option value="manual">הזנה ידנית</option><option value="hourly">לפי שעות × תעריף</option><option value="sales_above_target_pct">אחוז מהמכירות מעל היעד</option><option value="target_fixed">סכום קבוע בעמידה ביעד</option></select></label><label>סכום ידני ₪<input id="mcBonusManual" type="number" step="0.01" min="0"></label><label>תעריף / אחוז<input id="mcBonusRate" type="number" step="0.01" min="0"></label><label>בסיס שעות<input id="mcBonusBase" type="number" step="0.01" min="0" placeholder="ברירת מחדל: שעות רגילות"></label><label>יעד מכירות ₪<input id="mcBonusTarget" type="number" step="0.01" min="0"></label><label>מכירות בפועל ₪<input id="mcBonusActual" type="number" step="0.01" min="0"></label><label>בונוס קבוע ₪<input id="mcBonusFixed" type="number" step="0.01" min="0"></label></div><div id="mcBonusFormula" class="mcBonusFormula"><b>בונוס מחושב: ₪0.00</b><div class="mcFormulaLine">בחר שיטה והזן נתונים.</div></div>';
+    grid.after(box);box.querySelectorAll('input,select').forEach(x=>x.addEventListener('input',mcBonusPreview));mcReplaceSaveHours();mcBonusPreview();
+  }
+  function mcReplaceSaveHours(){
+    const b=document.getElementById('mpSaveHours');if(!b||b.dataset.mcFormulaBound==='1')return;
+    const n=b.cloneNode(true);n.dataset.mcFormulaBound='1';b.replaceWith(n);n.onclick=mcSaveHoursV2;
+  }
+  async function mcSaveHoursV2(){
+    const id=document.getElementById('mpHoursStaff')?.value,period=document.getElementById('mpHoursPeriod')?.value;if(!id||!period){toast?.('יש לבחור עובד וחודש');return}
+    const b=document.getElementById('mpSaveHours');b.disabled=true;b.textContent='שומר…';
+    const args={p_staff_id:id,p_period_label:period,p_regular_hours:Number(document.getElementById('mpRegular')?.value||0),p_overtime_hours:Number(document.getElementById('mpOvertime')?.value||0),p_holiday_hours:Number(document.getElementById('mpHoliday')?.value||0),p_bonus_method:document.getElementById('mcBonusMethod')?.value||'manual',p_bonus_manual:Number(document.getElementById('mcBonusManual')?.value||0),p_bonus_rate:Number(document.getElementById('mcBonusRate')?.value||0),p_bonus_base:Number(document.getElementById('mcBonusBase')?.value||document.getElementById('mpRegular')?.value||0),p_bonus_target:Number(document.getElementById('mcBonusTarget')?.value||0),p_bonus_actual:Number(document.getElementById('mcBonusActual')?.value||0),p_bonus_fixed:Number(document.getElementById('mcBonusFixed')?.value||0),p_manager_note:document.getElementById('mpHoursNote')?.value||'',p_source_file:null};
+    try{const r=await supabaseClient.rpc('admin_upsert_payroll_hours_v2',args);if(r.error)throw r.error;toast?.('השעות והבונוס נשמרו עם אופן החישוב');await mcLoadHoursV2()}catch(e){console.error(e);toast?.('שמירת השעות והבונוס נכשלה')}finally{b.disabled=false;b.textContent='שמירה'}
+  }
+  async function mcLoadHoursV2(){
+    if(appSession?.type!=='admin')return;const box=document.getElementById('mpHoursTable');if(!box)return;const period=document.getElementById('mpHoursFilter')?.value||'';
+    const r=await supabaseClient.rpc('admin_list_payroll_hours_v2',{p_period:period});if(r.error)return;
+    const rows=r.data||[];box.innerHTML='<table><thead><tr><th>עובד</th><th>רגילות</th><th>נוספות</th><th>שבת/חג</th><th>בונוס</th><th>אופן חישוב</th><th>אומדן בסיס</th></tr></thead><tbody>'+rows.map(x=>'<tr><td><b>'+esc(x.full_name)+'</b></td><td>'+x.regular_hours+'</td><td>'+x.overtime_hours+'</td><td>'+x.holiday_hours+'</td><td>₪'+Number(x.bonus_amount||0).toFixed(2)+'</td><td>'+esc(mcBonusLabel(x.bonus_method))+'<div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></td><td>₪'+Number(x.estimated_base||0).toFixed(2)+'</td></tr>').join('')+'</tbody></table>';
+  }
+  async function mcLoadEmployeePayrollV2(){
+    const box=document.getElementById('mfEmployeePayroll');if(!box||appSession?.type!=='employee')return;box.innerHTML='<small>טוען…</small>';
+    const r=await supabaseClient.rpc('employee_list_payroll_hours_v2',{p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code});
+    if(r.error){box.innerHTML='<div class="mfEmpty">טעינת הנתונים נכשלה.</div>';return}
+    const rows=r.data||[];box.innerHTML=rows.length?rows.map(x=>'<div class="mpWorkerRow"><b>'+esc(x.period_label)+'</b>'+(x.attendance_enabled?'<div class="mpWorkerFacts"><span>רגילות: '+(x.regular_hours??'—')+'</span><span>נוספות: '+(x.overtime_hours??'—')+'</span><span>שבת/חג: '+(x.holiday_hours??'—')+'</span></div>':'<div class="mfEmpty">הצפייה בשעות הנוכחות סגורה כרגע על ידי המנהל.</div>')+(x.bonuses_enabled?'<div class="mcBonusFormula"><b>בונוס: ₪'+Number(x.bonus_amount||0).toFixed(2)+'</b><div>'+esc(mcBonusLabel(x.bonus_method))+'</div><div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></div>':'<div class="mfEmpty">הצפייה בבונוסים סגורה כרגע על ידי המנהל.</div>')+(x.manager_note?'<small>'+esc(x.manager_note)+'</small>':'')+'</div>').join(''):'<div class="mfEmpty">אין כרגע נתונים זמינים לצפייה.</div>';
+  }
+  function mcPayrollEnforce(){
+    if(appSession?.type==='admin'){
+      mcEnsureBonusUi();
+      const refresh=document.getElementById('mpRefreshHours');if(refresh&&!refresh.dataset.mcFormulaRefresh){refresh.dataset.mcFormulaRefresh='1';refresh.addEventListener('click',()=>setTimeout(mcLoadHoursV2,80))}
+      const nav=document.querySelector('#payrollFinal [data-mp="hours"]');if(nav&&!nav.dataset.mcFormulaRefresh){nav.dataset.mcFormulaRefresh='1';nav.addEventListener('click',()=>setTimeout(()=>{mcEnsureBonusUi();mcLoadHoursV2()},120))}
+    }
+    if(appSession?.type==='employee')window.loadEmployeePayrollFinal=mcLoadEmployeePayrollV2;
+  }
+  window.loadEmployeePayrollControl=mcLoadEmployeePayrollV2;
 })();
