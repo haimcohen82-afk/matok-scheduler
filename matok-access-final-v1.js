@@ -60,7 +60,9 @@
       'payroll-hours':()=>openAdminPanel('payrollFinal','hours'),
       schedule:()=>openAdminPanel('adminSchedule'),
       employees:()=>openAdminPanel('employees'),
-      requests:()=>openAdminPanel('requests')
+      requests:()=>openAdminPanel('requests'),
+      access:()=>{openAdminPanel('overview');setTimeout(()=>window.openMatokAccessControl?.(),180);return true},
+      usage:()=>{openAdminPanel('overview');setTimeout(()=>window.openMatokUsageControl?.(),180);return true}
     };
     const fn=actions[intent];
     if(!fn)return;
