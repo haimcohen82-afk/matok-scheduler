@@ -130,6 +130,7 @@
 
       [docs,payroll,hoursIssue,shortage,messages].forEach(x=>{if(x)x.style.display='';});
       document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts span').forEach(x=>x.style.display='');
+      document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts,#mfEmployeePayroll .mcBonusFormula').forEach(x=>x.style.display='');
 
       if(mode==='documents'){
         if(payroll)payroll.style.display='none';
@@ -138,12 +139,16 @@
         if(docs)docs.style.display='none';
         if(hoursIssue)hoursIssue.style.display='none';
         document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts span').forEach(x=>{if((x.textContent||'').includes('בונוס'))x.style.display='none';});
+        document.querySelectorAll('#mfEmployeePayroll .mcBonusFormula').forEach(x=>x.style.display='none');
+        document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts').forEach(x=>x.style.display='');
         const h=payroll?.querySelector('h2');if(h)h.textContent='שעות נוכחות';
         const p=payroll?.querySelector('p');if(p)p.textContent='השעות שנשמרו עבורך לפי חודש.';
       }else if(mode==='bonus'){
         if(docs)docs.style.display='none';
         if(hoursIssue)hoursIssue.style.display='none';
         document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts span').forEach(x=>{if(!(x.textContent||'').includes('בונוס'))x.style.display='none';});
+        document.querySelectorAll('#mfEmployeePayroll .mpWorkerFacts').forEach(x=>x.style.display='none');
+        document.querySelectorAll('#mfEmployeePayroll .mcBonusFormula').forEach(x=>x.style.display='');
         const h=payroll?.querySelector('h2');if(h)h.textContent='בונוסים';
         const p=payroll?.querySelector('p');if(p)p.textContent='הבונוסים שנשמרו עבורך לפי חודש.';
       }else{
