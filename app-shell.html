@@ -274,7 +274,7 @@ function renderEmployees(){
    +'<div class="facts"><span>משתמש: <b dir="ltr">'+escapeHtml(e.username||'—')+'</b></span>'
    +'<span>משמרות שבועיות: '+(e.weeklyRequired||0)+'</span><span>'+fridayText(e.friday)+'</span></div>'
    +'<div class="actions" style="margin-top:10px"><button type="button" class="btn primary" onclick="'+(active?'openEmployee('+index+')':'openInactiveEmployee(\''+e.id+'\')')+'">עריכת עובד</button>'
-   +(active?'<button type="button" class="btn secondary" onclick="shareEmployeeCredentials('+index+')">פרטי כניסה</button><button type="button" class="btn danger soft" onclick="deactivateEmployee('+index+')">הפיכה ללא פעיל</button>'
+   +(active?'<button type="button" class="btn secondary" onclick="shareEmployeeCredentials('+index+')">פרטי כניסה</button><button type="button" class="btn secondary" onclick="resetEmployeePin('+index+')">איפוס קוד</button><button type="button" class="btn danger soft" onclick="deactivateEmployee('+index+')">הפיכה ללא פעיל</button>'
      :'<button type="button" class="btn secondary" onclick="reactivateEmployee(\''+e.id+'\')">החזרה לפעילות</button>')
    +'</div></article>';
   grid.innerHTML='<section style="grid-column:1/-1"><h3>עובדים פעילים ('+employees.length+')</h3><div class="employeeGrid">'
