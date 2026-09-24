@@ -284,6 +284,10 @@
 
   addStyles();
   document.addEventListener('DOMContentLoaded',async()=>{
+    if(sessionStorage.getItem('matokInactiveNotice')){
+      sessionStorage.removeItem('matokInactiveNotice');
+      const box=document.getElementById('authError');if(box)box.textContent='החשבון שלך אינו פעיל. אנא צור קשר עם ההנהלה.';
+    }
     await sleep(80);
     if(!appSession?.type)await restoreEmployeeSafely();
     if(isEmployee())initEmployeeUi();
