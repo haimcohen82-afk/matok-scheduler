@@ -181,7 +181,19 @@
   }
   async function mcHeartbeat(){
     if(!mcPortalSessionId||appSession?.type!=='employee')return;
-    try{await supabaseClient.rpc('employee_portal_heartbeat',{p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code,p_session_id:mcPortalSessionId})}catch(_){}
+    try{
+      const creds={p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code};
+      const pulse=await supabaseClient.rpc('employee_portal_heartbeat',{...creds,p_session_id:mcPortalSessionId});
+      if(pulse.error||pulse.data!==false)return;
+      const check=await supabaseClient.rpc('employee_validate_session',creds);
+      if(check.error||check.data?.[0]?.login_status!=='inactive')return;
+      clearInterval(mcHeartbeatTimer);mcPortalSessionId='';
+      sessionStorage.removeItem('matokEmployee');
+      sessionStorage.removeItem('matokEmployeeFinalSession');
+      sessionStorage.setItem('matokInactiveNotice','1');
+      appSession=null;
+      location.reload();
+    }catch(e){console.error('portal access heartbeat',e)}
   }
   function mcEndPortalSession(){
     if(!mcPortalSessionId||appSession?.type!=='employee')return;
