@@ -64,6 +64,7 @@
         const until=u.locked_until?new Date(u.locked_until).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):'בעוד מספר דקות';
         if(errorBox)errorBox.innerHTML=`<div class="mfLoginWarn">הכניסה נעולה זמנית לאחר מספר ניסיונות שגויים. ניתן לנסות שוב ב־${esc(until)}.</div>`;return;
       }
+      if(u.login_status==='inactive'){if(errorBox)errorBox.textContent='החשבון שלך אינו פעיל. אנא צור קשר עם ההנהלה.';return}
       if(u.login_status!=='ok'){if(errorBox)errorBox.textContent='שם המשתמש או קוד ה-PIN אינם נכונים';return}
       appSession={type:'employee',user:{id:u.id,name:u.full_name,role:u.role_name,username:u.username},username:u.username||username,code};
       saveEmployeeSession();
@@ -87,7 +88,14 @@
       const id=saved.user?.id||saved.id;
       if(!id)return false;
       const {data,error}=await supabaseClient.rpc('employee_validate_session',{p_staff_id:id,p_username:saved.username,p_code:saved.code});
-      if(error||data?.[0]?.login_status!=='ok'){sessionStorage.removeItem(SAFE_SESSION_KEY);return false}
+      if(error||data?.[0]?.login_status!=='ok'){
+        sessionStorage.removeItem(SAFE_SESSION_KEY);
+        sessionStorage.removeItem('matokEmployee');
+        if(data?.[0]?.login_status==='inactive'){
+          const msg=document.getElementById('authError');if(msg)msg.textContent='החשבון שלך אינו פעיל. אנא צור קשר עם ההנהלה.';
+        }
+        return false;
+      }
       const u=data[0];appSession={type:'employee',user:{id:u.id,name:u.full_name,role:u.role_name,username:u.username},username:u.username,code:saved.code};
       saveEmployeeSession();finishLogin(u.full_name,'employee');await loadEmployeePortalFinal();return true;
     }catch(e){console.error('safe restore',e);return false}
