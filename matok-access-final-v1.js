@@ -189,7 +189,7 @@
       if(check.error||check.data?.[0]?.login_status!=='inactive')return;
       clearInterval(mcHeartbeatTimer);mcPortalSessionId='';
       sessionStorage.removeItem('matokEmployee');
-      sessionStorage.removeItem('matokEmployeeFinalSession');
+      sessionStorage.removeItem('matokEmployeeSafeV1');
       sessionStorage.setItem('matokInactiveNotice','1');
       appSession=null;
       location.reload();
