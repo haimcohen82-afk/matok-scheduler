@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const VERSION='20260829-final-manager-home-5';
+  const VERSION='20260925-manager-payroll-restore-1';
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const sunday=offset=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-d.getDay()+offset);return iso(d)};
@@ -8,24 +8,32 @@
   const statusText=s=>({published:'פורסם',availability_open:'פתוח להגשת משמרות',draft:'טיוטה',closed:'סגור'}[s]||'לא נפתח');
   let loading=false,initialWeekSelected=false;
 
-  function style(){if(document.getElementById('mfManagerHomeStyle'))return;const s=document.createElement('style');s.id='mfManagerHomeStyle';s.textContent=`.mfManagerWeeks{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:0 0 13px}.mfWeekHero{border:1px solid var(--line);background:#fff;border-radius:16px;padding:15px;box-shadow:0 8px 22px #1a1a2e0b}.mfWeekHero.current{border-right:6px solid var(--teal)}.mfWeekHero.next{border-right:6px solid var(--coral)}.mfWeekHero h2{margin:3px 0}.mfWeekHero p{margin:4px 0;color:var(--muted)}.mfWeekMeta{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}.mfWeekMeta span{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:10px;font-weight:800}.mfManagerHomeHead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px}@media(max-width:700px){.mfManagerWeeks{grid-template-columns:1fr}}`;document.head.appendChild(s)}
+  function style(){if(document.getElementById('mfManagerHomeStyle'))return;const s=document.createElement('style');s.id='mfManagerHomeStyle';s.textContent=`.mfManagerWeeks{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:0 0 13px}.mfWeekHero{border:1px solid var(--line);background:#fff;border-radius:16px;padding:15px;box-shadow:0 8px 22px #1a1a2e0b}.mfWeekHero.current{border-right:6px solid var(--teal)}.mfWeekHero.next{border-right:6px solid var(--coral)}.mfWeekHero h2{margin:3px 0}.mfWeekHero p{margin:4px 0;color:var(--muted)}.mfWeekMeta{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}.mfWeekMeta span{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:10px;font-weight:800}.mfPayrollShortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}.mfPayrollShortcuts button{min-height:58px;text-align:right;border-radius:13px;font-size:14px}.mfManagerHomeHead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px}@media(max-width:700px){.mfManagerWeeks{grid-template-columns:1fr}.mfPayrollShortcuts button{font-size:12px;padding:10px}}`;document.head.appendChild(s)}
 
   function ensure(){
     if(!isAdmin())return null;const overview=document.getElementById('overview');if(!overview)return null;
     let root=document.getElementById('mfManagerWeeks');if(root)return root;
-    root=document.createElement('section');root.id='mfManagerWeeks';root.innerHTML='<div class="mfManagerHomeHead"><div><b>מרכז הסידור</b><small style="display:block;color:var(--muted)">השבוע הפעיל והשבוע הבא מופרדים כדי שלא יהיה בלבול.</small></div><button type="button" class="btn secondary" id="mfManagerWeeksRefresh">רענון</button></div><div class="mfManagerWeeks"><article class="mfWeekHero current" id="mfCurrentWeekCard"><small>השבוע הפעיל</small><h2>טוען…</h2></article><article class="mfWeekHero next" id="mfNextWeekCard"><small>השבוע הבא</small><h2>טוען…</h2></article></div><article class="mfWeekHero" id="mfPayrollQuick"><small>שכר ונוכחות</small><h2>תלושים, דוחות שעות ובונוסים</h2><p>כניסה מהירה לפורטל השכר בלי לחפש בתפריטים.</p><div class="actions"><button type="button" class="btn primary" id="mfOpenPayrollPdf">העלאת תלושים / דוחות</button><button type="button" class="btn secondary" id="mfOpenPayrollHours">שעות ובונוסים</button></div></article>';
+    root=document.createElement('section');root.id='mfManagerWeeks';root.innerHTML='<div class="mfManagerHomeHead"><div><b>מרכז הסידור</b><small style="display:block;color:var(--muted)">השבוע הפעיל והשבוע הבא מופרדים כדי שלא יהיה בלבול.</small></div><button type="button" class="btn secondary" id="mfManagerWeeksRefresh">רענון</button></div><div class="mfManagerWeeks"><article class="mfWeekHero current" id="mfCurrentWeekCard"><small>השבוע הפעיל</small><h2>טוען…</h2></article><article class="mfWeekHero next" id="mfNextWeekCard"><small>השבוע הבא</small><h2>טוען…</h2></article></div><article class="mfWeekHero" id="mfPayrollQuick"><small>MATOK BASIC · פורטל שכר</small><h2>שכר, תלושים ונוכחות</h2><p>כל הפעולות במקום אחד. לאחר העלאת מסמך ושיוכו, העובד רואה אותו ב״הנתונים שלי״.</p><div class="mfPayrollShortcuts"><button type="button" class="btn primary" id="mfOpenPayrollPdf">העלאת תלושי שכר מרוכזים</button><button type="button" class="btn secondary" id="mfOpenPayrollAttendancePdf">העלאת דוחות נוכחות PDF</button><button type="button" class="btn secondary" id="mfOpenPayrollSingle">העלאה לעובד אחד</button><button type="button" class="btn secondary" id="mfOpenPayrollHours">ייבוא שעות ובונוסים · Excel</button><button type="button" class="btn secondary" id="mfOpenPayrollArchive">ארכיון מסמכים ומסירה</button><button type="button" class="btn secondary" id="mfOpenPayrollPolicy">נוהל שכר להדפסה</button></div></article>';
     root.dataset.mfMounted='1';overview.prepend(root);document.getElementById('mfManagerWeeksRefresh').onclick=load;
-    const openPayroll=sub=>{
+    const openPayroll=(sub,docType)=>{
+      window.initPayrollAdminFinal?.();
       const tab=document.querySelector('.adminTabs [data-target="payrollFinal"]');
-      tab?.click();
+      if(!tab){toast?.('פורטל השכר לא נטען; בדוק את גרסת המערכת במרכז התקינות.');return}
+      tab.click();
       setTimeout(()=>{
-        const btn=document.querySelector(`#payrollFinal [data-mp="${sub}"]`);
-        btn?.click();
+        const btn=document.querySelector('#payrollFinal [data-mp="'+sub+'"]');
+        if(!btn){toast?.('מסך השכר המבוקש לא נמצא; בדוק את גרסת המערכת.');return}
+        btn.click();
+        if(docType){const select=document.getElementById('mpPdfType');if(select){select.value=docType;select.dispatchEvent(new Event('change'))}}
         document.getElementById('payrollFinal')?.scrollIntoView({behavior:'smooth',block:'start'});
-      },80);
+      },90);
     };
-    document.getElementById('mfOpenPayrollPdf').onclick=()=>openPayroll('pdf');
+    document.getElementById('mfOpenPayrollPdf').onclick=()=>openPayroll('pdf','payslip');
+    document.getElementById('mfOpenPayrollAttendancePdf').onclick=()=>openPayroll('pdf','hours');
+    document.getElementById('mfOpenPayrollSingle').onclick=()=>openPayroll('single');
     document.getElementById('mfOpenPayrollHours').onclick=()=>openPayroll('hours');
+    document.getElementById('mfOpenPayrollArchive').onclick=()=>openPayroll('delivery');
+    document.getElementById('mfOpenPayrollPolicy').onclick=()=>openPayroll('policy');
     return root;
   }
 
