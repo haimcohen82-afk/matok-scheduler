@@ -5,7 +5,7 @@ const fail=msg=>{throw new Error(msg)};
 const has=s=>html.includes(s);
 
 const requirements=[
-  [1,'פורטל העלאת תלושים ודוחות נוכחות',['mpUploadChoice','mpAnalyzePdf','mpSavePdf','admin_register_employee_document','employee-documents']],
+  [1,'פורטל העלאת תלושים ודוחות נוכחות',['mpUploadChoice','mpAnalyzePdf','mpSavePdf','admin_register_employee_document','employee-documents','mpSingleStaff','mpSingleSave','mpPolicyText','mpPrintPolicy','mfOpenPayrollAttendancePdf','mfOpenPayrollArchive']],
   [2,'עובד רואה רק מסמכים ונתונים אישיים',['employee_list_documents','employee-document-link','mfEmployeeDocuments','employee_list_payroll_hours']],
   [3,'מעטפת עובד פשוטה עם תפריט עגול',['מה ברצונך לעשות?','border-radius:50%;aspect-ratio:1/1','הנתונים שלי','שעות נוכחות','בונוסים']],
   [4,'כניסת עובד יציבה ושחזור קוד',['employee_login','employee_validate_session','admin_get_staff_login_status','admin_issue_staff_credentials_v2','mfEmployeeLoginHelp','autocomplete="off" enterkeyhint="done"']],
