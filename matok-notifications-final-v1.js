@@ -104,8 +104,21 @@
     const panel=document.getElementById('requests');if(!panel||document.getElementById('mcAdminBroadcast'))return;
     mcEnsureMessageStyles();
     const root=document.createElement('article');root.id='mcAdminBroadcast';root.className='mcAdminBroadcast';
-    root.innerHTML='<div class="employeeHead"><div><h2>הודעות לעובדים</h2><small>ציבורית = כל העובדים הפעילים. אישית = רק העובד שנבחר. העובדים יכולים להגיב אליך.</small></div><button class="btn secondary" id="mcBroadcastRefresh">רענון</button></div><div class="mcCompose"><label>סוג<select id="mcBroadcastAudience"><option value="public">ציבורית — כל העובדים</option><option value="personal">אישית — עובד אחד</option></select></label><label id="mcBroadcastStaffWrap" style="display:none">עובד<select id="mcBroadcastStaff"></select></label><label class="full">כותרת<input id="mcBroadcastTitle" placeholder="נושא קצר"></label><label class="full">הודעה<textarea id="mcBroadcastBody" rows="4" placeholder="מה חשוב שהעובדים ידעו?"></textarea></label><button class="btn primary full" id="mcBroadcastSend">שליחת הודעה</button></div><div id="mcBroadcastList" style="margin-top:11px"><small>טוען…</small></div>';
+    root.innerHTML='<div class="employeeHead"><div><h2>הודעות לעובדים</h2><small>ציבורית = כל העובדים הפעילים. אישית = רק העובד שנבחר. העובדים יכולים להגיב אליך.</small></div><button class="btn secondary" id="mcBroadcastRefresh">רענון</button></div><div class="mcCompose"><label>סוג<select id="mcBroadcastAudience"><option value="public">ציבורית — כל העובדים</option><option value="personal">אישית — עובד אחד</option></select></label><label id="mcBroadcastStaffWrap" style="display:none">עובד<select id="mcBroadcastStaff"></select></label><label class="full">נוסח מוכן — מכירה וחיזוק<select id="mcSalesTemplate"><option value="">נוסח חופשי / בחירת תבנית</option><option value="positive">חיזוק אישי</option><option value="crosssell">דגש על מכירה משלימה</option><option value="near">מתקרבים ליעד</option><option value="reached">עמידה ביעד</option><option value="focus">מיקוד לשיפור המכירה</option></select><small>התבניות נבחרות ונשלחות בידי המנהל; אין כאן מדידה אוטומטית מהקופות.</small></label><label class="full">כותרת<input id="mcBroadcastTitle" placeholder="נושא קצר"></label><label class="full">הודעה<textarea id="mcBroadcastBody" rows="4" placeholder="מה חשוב שהעובדים ידעו?"></textarea></label><button class="btn primary full" id="mcBroadcastSend">שליחת הודעה</button></div><div id="mcBroadcastList" style="margin-top:11px"><small>טוען…</small></div>';
     panel.prepend(root);
+    const salesTemplates={
+      positive:{title:'תודה על העבודה שלך',body:'רציתי לציין לטובה את השירות וההשקעה שלך במשמרות האחרונות. המשיכי לתת יחס אישי לכל לקוח ולשמור על רמת השירות שלנו. מעריכים אותך, הנהלת MATOK BASIC.'},
+      crosssell:{title:'דגש קטן למשמרת הקרובה',body:'במשמרת הקרובה נשים לב במיוחד לצורכי הלקוחות: נציע פריט משלים רק כשהוא באמת מתאים, נכיר את המבצעים ונדאג שכל לקוח יקבל מענה מקצועי ונעים. בהצלחה!'},
+      near:{title:'ממשיכים לכיוון היעד',body:'אנחנו מתקדמים לקראת היעד. חשוב להמשיך בשירות קשוב, בהיכרות עם המוצרים ובהצעה נכונה של פריטים משלימים. כל מכירה טובה מתחילה בהבנת הצורך של הלקוח.'},
+      reached:{title:'כל הכבוד על העמידה ביעד',body:'תודה על ההשקעה ועל העבודה המקצועית. ההתקדמות שלנו היא בזכות צוות שמכיר את המוצרים ושומר על שירות מצוין. מעריכים את התרומה שלך!'},
+      focus:{title:'מתמקדים בשירות ובמכירה',body:'מבקשים לחזק היום את העבודה מול הלקוחות: לקבל כל לקוח בסבר פנים יפות, לברר מה הוא מחפש, להציג אפשרויות מתאימות ולסגור את הביקור בתחושת שירות טובה. לכל שאלה אפשר לפנות אליי.'}
+    };
+    document.getElementById('mcSalesTemplate').onchange=e=>{
+      const template=salesTemplates[e.target.value];
+      if(!template)return;
+      document.getElementById('mcBroadcastTitle').value=template.title;
+      document.getElementById('mcBroadcastBody').value=template.body;
+    };
     document.getElementById('mcBroadcastAudience').onchange=()=>{document.getElementById('mcBroadcastStaffWrap').style.display=document.getElementById('mcBroadcastAudience').value==='personal'?'':'none'};
     document.getElementById('mcBroadcastSend').onclick=mcSendBroadcast;
     document.getElementById('mcBroadcastRefresh').onclick=mcLoadAdminBroadcast;
