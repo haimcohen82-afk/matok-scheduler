@@ -194,6 +194,9 @@
     }catch(_){ }
   }
 
+  // Keep the selected personal view stable when private payroll RPC finishes.
+  window.matokApplyEmployeeSimpleMode=applyEmployeeSimpleMode;
+
   function enforce(){
     addStyles();
     if(document.querySelector('#mfAdminScheduleBody .mfDay')) decorateSchedule();
