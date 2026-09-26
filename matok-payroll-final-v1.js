@@ -254,7 +254,7 @@
       if(key&&payrollBootKey!==key){
         payrollBootKey=key;
         loadEmployeeDocumentsFinal();
-        loadEmployeePayrollFinal();
+        mcLoadEmployeePayrollV2();
       }
       return true;
     }
@@ -267,10 +267,10 @@
     const hours=document.getElementById('hours');
     if(hours?.classList.contains('active')){
       loadEmployeeDocumentsFinal();
-      loadEmployeePayrollFinal();
+      mcLoadEmployeePayrollV2();
     }
   });
-  window.initPayrollAdminFinal=initPayrollAdminFinal;window.loadEmployeeDocumentsFinal=loadEmployeeDocumentsFinal;window.loadEmployeePayrollFinal=loadEmployeePayrollFinal;
+  window.initPayrollAdminFinal=initPayrollAdminFinal;window.loadEmployeeDocumentsFinal=loadEmployeeDocumentsFinal;window.loadEmployeePayrollFinal=mcLoadEmployeePayrollV2;
 
   // MATOK_BONUS_FORMULA_V1
   const mcBonusLabel=m=>({manual:'הזנה ידנית',hourly:'לפי שעות × תעריף',sales_above_target_pct:'אחוז מהמכירות מעל היעד',target_fixed:'סכום קבוע בעמידה ביעד'}[m]||'הזנה ידנית');
@@ -314,12 +314,35 @@
     const r=await supabaseClient.rpc('admin_list_payroll_hours_v2',{p_period:period});if(r.error)return;
     const rows=r.data||[];box.innerHTML='<table><thead><tr><th>עובד</th><th>רגילות</th><th>נוספות</th><th>שבת/חג</th><th>בונוס</th><th>אופן חישוב</th><th>אומדן בסיס</th></tr></thead><tbody>'+rows.map(x=>'<tr><td><b>'+esc(x.full_name)+'</b></td><td>'+x.regular_hours+'</td><td>'+x.overtime_hours+'</td><td>'+x.holiday_hours+'</td><td>₪'+Number(x.bonus_amount||0).toFixed(2)+'</td><td>'+esc(mcBonusLabel(x.bonus_method))+'<div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></td><td>₪'+Number(x.estimated_base||0).toFixed(2)+'</td></tr>').join('')+'</tbody></table>';
   }
+  let mcPayrollRequestNumber=0;
   async function mcLoadEmployeePayrollV2(){
-    const box=document.getElementById('mfEmployeePayroll');if(!box||appSession?.type!=='employee')return;box.innerHTML='<small>טוען…</small>';
-    const r=await supabaseClient.rpc('employee_list_payroll_hours_v2',{p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code});
-    if(r.error){box.innerHTML='<div class="mfEmpty">טעינת הנתונים נכשלה.</div>';return}
-    const rows=r.data||[];box.innerHTML=rows.length?rows.map(x=>'<div class="mpWorkerRow"><b>'+esc(x.period_label)+'</b>'+(x.attendance_enabled?'<div class="mpWorkerFacts"><span>רגילות: '+(x.regular_hours??'—')+'</span><span>נוספות: '+(x.overtime_hours??'—')+'</span><span>שבת/חג: '+(x.holiday_hours??'—')+'</span></div>':'<div class="mfEmpty">הצפייה בשעות הנוכחות סגורה כרגע על ידי המנהל.</div>')+(x.bonuses_enabled?'<div class="mcBonusFormula"><b>בונוס: ₪'+Number(x.bonus_amount||0).toFixed(2)+'</b><div>'+esc(mcBonusLabel(x.bonus_method))+'</div><div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></div>':'<div class="mfEmpty">הצפייה בבונוסים סגורה כרגע על ידי המנהל.</div>')+(x.manager_note?'<small>'+esc(x.manager_note)+'</small>':'')+'</div>').join(''):'<div class="mfEmpty">אין כרגע נתונים זמינים לצפייה.</div>';
+    const box=document.getElementById('mfEmployeePayroll');
+    if(!box||appSession?.type!=='employee')return;
+    const request=++mcPayrollRequestNumber;
+    box.innerHTML='<small>טוען את הנתונים האישיים…</small>';
+    try{
+      const r=await supabaseClient.rpc('employee_list_payroll_hours_v2',{
+        p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code
+      });
+      if(request!==mcPayrollRequestNumber||appSession?.type!=='employee')return;
+      if(r.error)throw r.error;
+      const rows=Array.isArray(r.data)?r.data:[];
+      box.innerHTML=rows.length?rows.map(x=>'<div class="mpWorkerRow"><b>'+esc(x.period_label)+'</b>'+
+        (x.attendance_enabled?'<div class="mpWorkerFacts"><span>רגילות: '+esc(x.regular_hours??'—')+'</span><span>נוספות: '+esc(x.overtime_hours??'—')+'</span><span>שבת/חג: '+esc(x.holiday_hours??'—')+'</span></div>':'<div class="mfEmpty">הצפייה בשעות הנוכחות אינה מאופשרת עבורך כרגע.</div>')+
+        (x.bonuses_enabled?'<div class="mcBonusFormula"><b>בונוס: ₪'+Number(x.bonus_amount||0).toFixed(2)+'</b><div>'+esc(mcBonusLabel(x.bonus_method))+'</div><div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></div>':'<div class="mfEmpty">הצפייה בבונוסים אינה מאופשרת עבורך כרגע. ניתן לפנות למנהל.</div>')+
+        (x.manager_note?'<small>'+esc(x.manager_note)+'</small>':'')+'</div>').join(''):'<div class="mfEmpty">אין כרגע נתוני שכר או בונוסים שנשמרו עבורך.</div>';
+      // The bonus/attendance screen might have opened before the async response.
+      // Reapply its display mode only after fresh, personal data is in the DOM.
+      const mode=document.getElementById('worker')?.dataset.mfSimpleMode||'';
+      window.matokApplyEmployeeSimpleMode?.(mode);
+    }catch(error){
+      if(request!==mcPayrollRequestNumber)return;
+      console.error('employee payroll loading',error);
+      box.innerHTML='<div class="mfEmpty"><b>לא ניתן לטעון כרגע את נתוני השעות והבונוסים.</b><p>לא בוצע שינוי בהרשאות או בנתונים שלך.</p><button type="button" class="btn secondary" id="mcPayrollRetry">ניסיון נוסף</button></div>';
+      document.getElementById('mcPayrollRetry').onclick=mcLoadEmployeePayrollV2;
+    }
   }
+
   function mcPayrollEnforce(){
     if(appSession?.type==='admin'){
       mcEnsureBonusUi();
