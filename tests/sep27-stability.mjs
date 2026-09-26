@@ -76,6 +76,8 @@ assert(payroll.includes('window.loadEmployeePayrollFinal=mcLoadEmployeePayrollV2
 assert(payroll.includes("document.getElementById('mcPayrollRetry').onclick=mcLoadEmployeePayrollV2"));
 assert(payroll.includes('window.matokApplyEmployeeSimpleMode?.(mode)'));
 assert(ui.includes('window.matokApplyEmployeeSimpleMode=applyEmployeeSimpleMode'));
+assert(payroll.includes('mcAttendanceBlocked')&&payroll.includes('mcBonusBlocked'));
+assert(ui.includes("mode==='attendance'")&&ui.includes("mode==='bonus'"));
 assert(payroll.includes('id="mpBackToAdmin"'));
 assert(payroll.includes("getElementById('mpBackToAdmin').onclick"));
 assert(messages.includes('id="mcSalesTemplate"'));
