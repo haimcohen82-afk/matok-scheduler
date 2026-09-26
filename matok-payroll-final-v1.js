@@ -329,8 +329,8 @@
       if(r.error)throw r.error;
       const rows=Array.isArray(r.data)?r.data:[];
       box.innerHTML=rows.length?rows.map(x=>'<div class="mpWorkerRow"><b>'+esc(x.period_label)+'</b>'+
-        (x.attendance_enabled?'<div class="mpWorkerFacts"><span>רגילות: '+esc(x.regular_hours??'—')+'</span><span>נוספות: '+esc(x.overtime_hours??'—')+'</span><span>שבת/חג: '+esc(x.holiday_hours??'—')+'</span></div>':'<div class="mfEmpty">הצפייה בשעות הנוכחות אינה מאופשרת עבורך כרגע.</div>')+
-        (x.bonuses_enabled?'<div class="mcBonusFormula"><b>בונוס: ₪'+Number(x.bonus_amount||0).toFixed(2)+'</b><div>'+esc(mcBonusLabel(x.bonus_method))+'</div><div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></div>':'<div class="mfEmpty">הצפייה בבונוסים אינה מאופשרת עבורך כרגע. ניתן לפנות למנהל.</div>')+
+        (x.attendance_enabled?'<div class="mpWorkerFacts"><span>רגילות: '+esc(x.regular_hours??'—')+'</span><span>נוספות: '+esc(x.overtime_hours??'—')+'</span><span>שבת/חג: '+esc(x.holiday_hours??'—')+'</span></div>':'<div class="mfEmpty mcAttendanceBlocked">הצפייה בשעות הנוכחות אינה מאופשרת עבורך כרגע.</div>')+
+        (x.bonuses_enabled?'<div class="mcBonusFormula"><b>בונוס: ₪'+Number(x.bonus_amount||0).toFixed(2)+'</b><div>'+esc(mcBonusLabel(x.bonus_method))+'</div><div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></div>':'<div class="mfEmpty mcBonusBlocked">הצפייה בבונוסים אינה מאופשרת עבורך כרגע. ניתן לפנות למנהל.</div>')+
         (x.manager_note?'<small>'+esc(x.manager_note)+'</small>':'')+'</div>').join(''):'<div class="mfEmpty">אין כרגע נתוני שכר או בונוסים שנשמרו עבורך.</div>';
       // The bonus/attendance screen might have opened before the async response.
       // Reapply its display mode only after fresh, personal data is in the DOM.
