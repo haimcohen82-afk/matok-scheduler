@@ -17,7 +17,8 @@ const syntaxFiles=[
   'tests/smoke.mjs',
   'tests/schedule-regression.mjs',
   'tests/requirements-17.mjs',
-  'tests/inactive-payroll.mjs'
+  'tests/inactive-payroll.mjs',
+  'tests/sep27-stability.mjs',
 ];
 
 function run(args,label){
@@ -36,4 +37,5 @@ run(['tests/smoke.mjs'],'smoke checks');
 run(['tests/schedule-regression.mjs'],'schedule regression checks');
 run(['tests/requirements-17.mjs'],'17 requirement checks');
 run(['tests/inactive-payroll.mjs'],'inactive employee and payroll regression checks');
+run(['tests/sep27-stability.mjs'],'September scheduler stabilization checks');
 console.log('MATOK production verification passed');
