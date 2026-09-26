@@ -45,7 +45,8 @@
         throw new Error('המערכת לא אישרה שההודעה נשמרה לשבוע הנבחר');
       }
       toast?.('הודעת הצוות נשמרה ואומתה');
-      await window.loadAdminFinalData?.(weekStart);
+      try{await window.loadAdminFinalData?.(weekStart)}
+      catch(refreshError){console.warn('manager note saved, refresh failed',refreshError);toast?.('ההודעה נשמרה, אך רענון הסידור נכשל')};
     }catch(error){
       console.error('save manager note',error);
       toast?.('השמירה לא הושלמה. ההודעה נשארה לעריכה — יש לנסות שוב');
