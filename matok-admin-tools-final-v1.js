@@ -24,13 +24,35 @@
     return {weekStart,week,assignments:assignments||[],settings:settings||[]};
   }
 
+  let noteSavePending=false;
   async function saveNote(){
-    if(!isAdmin())return;
-    const weekStart=currentWeek(),note=document.getElementById('mfManagerNote')?.value?.trim()||'';
+    if(!isAdmin()||noteSavePending)return;
+    const weekStart=currentWeek(),field=document.getElementById('mfManagerNote'),note=field?.value?.trim()||'';
     if(!weekStart){toast?.('לא נבחר שבוע');return}
-    const {error}=await supabaseClient.from('work_weeks').update({manager_note:note,updated_at:new Date().toISOString()}).eq('week_start',weekStart);
-    if(error){console.error(error);toast?.('שמירת ההודעה נכשלה');return}
-    toast?.('הודעת הצוות נשמרה');await window.loadAdminFinalData?.(weekStart);
+    const button=document.getElementById('mfSaveNoteBtn');
+    noteSavePending=true;
+    if(button){button.disabled=true;button.textContent='שומר…'}
+    try{
+      // An UPDATE without SELECT can report no error even if the week did not exist
+      // or row-level access prevented a write. Verify the actual returned row.
+      const {data,error}=await supabaseClient.from('work_weeks')
+        .update({manager_note:note,updated_at:new Date().toISOString()})
+        .eq('week_start',weekStart)
+        .select('week_start,manager_note')
+        .maybeSingle();
+      if(error)throw error;
+      if(!data||data.week_start!==weekStart||String(data.manager_note||'')!==note){
+        throw new Error('המערכת לא אישרה שההודעה נשמרה לשבוע הנבחר');
+      }
+      toast?.('הודעת הצוות נשמרה ואומתה');
+      await window.loadAdminFinalData?.(weekStart);
+    }catch(error){
+      console.error('save manager note',error);
+      toast?.('השמירה לא הושלמה. ההודעה נשארה לעריכה — יש לנסות שוב');
+    }finally{
+      noteSavePending=false;
+      if(button){button.disabled=false;button.textContent='שמירת הודעה'}
+    }
   }
 
   async function printSchedule(){
