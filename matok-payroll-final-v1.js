@@ -241,10 +241,10 @@
     await page.render({canvasContext:ctx,viewport}).promise;
     setPdfStatus('עמוד '+pageNo+': '+(high?'סריקה חוזרת בחדות גבוהה':'OCR לזיהוי מסמך סרוק')+'…');
     try{
-      if(!ocrWorker)ocrWorker=await Tesseract.createWorker('heb+eng',1,{logger:m=>{
+      if(!ocrWorker && typeof Tesseract.createWorker==='function')ocrWorker=await Tesseract.createWorker('heb+eng',1,{logger:m=>{
         if(m.status==='recognizing text'&&Number.isFinite(m.progress))setPdfStatus('עמוד '+pageNo+': OCR '+Math.round(m.progress*100)+'%');
       }});
-      const result=await ocrWorker.recognize(canvas);
+      const result=ocrWorker?await ocrWorker.recognize(canvas):await Tesseract.recognize(canvas,'heb+eng');
       return result?.data?.text||'';
     }finally{canvas.width=0;canvas.height=0}
   }
