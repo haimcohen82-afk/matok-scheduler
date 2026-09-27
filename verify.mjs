@@ -13,6 +13,10 @@ const syntaxFiles=[
   'matok-admin-tools-final-v1.js',
   'matok-manager-home-final-v1.js',
   'matok-availability-roster-final-v1.js',
+  'matok-compact-install-v2.js',
+  'matok-attendance-employee-v1.js',
+  'matok-attendance-manager-v1.js',
+  'tests/attendance-compact.mjs',
   'build.mjs',
   'tests/smoke.mjs',
   'tests/schedule-regression.mjs',
@@ -36,4 +40,5 @@ run(['tests/smoke.mjs'],'smoke checks');
 run(['tests/schedule-regression.mjs'],'schedule regression checks');
 run(['tests/requirements-17.mjs'],'17 requirement checks');
 run(['tests/inactive-payroll.mjs'],'inactive employee and payroll regression checks');
+run(['tests/attendance-compact.mjs'],'attendance and compact portal checks');
 console.log('MATOK production verification passed');
