@@ -264,28 +264,81 @@
 
   async function saveSinglePdf(){
     if(!isAdmin())return;
-    const staffId=document.getElementById('mpSingleStaff')?.value,type=document.getElementById('mpSingleType')?.value,period=document.getElementById('mpSinglePeriod')?.value,file=document.getElementById('mpSingleFile')?.files?.[0],status=document.getElementById('mpSingleStatus'),btn=document.getElementById('mpSingleSave');
-    if(!staffId||!['payslip','hours'].includes(type)||!period||!file){status.textContent='יש לבחור עובד, סוג מסמך, חודש וקובץ PDF.';status.className='mpStatus bad';return}
-    if(!/\.pdf$/i.test(file.name)||file.size===0||file.size>12*1024*1024){status.textContent='אפשר להעלות PDF תקין עד 12MB בלבד.';status.className='mpStatus bad';return}
-    if(!confirm('לשמור את '+(type==='payslip'?'תלוש השכר':'דוח השעות')+' של '+(staff.find(x=>x.id===staffId)?.full_name||'העובד')+' בארכיון האישי?'))return;
-    btn.disabled=true;status.textContent='מעלה מסמך לארכיון הפרטי…';status.className='mpStatus';
-    const path=staffId+'/'+safe(period)+'/'+type+'-'+crypto.randomUUID()+'.pdf';let uploaded=false;
+    const id=String(document.getElementById('mpSingleStaff')?.value||'');
+    const type=document.getElementById('mpSingleType')?.value;
+    const period=document.getElementById('mpSinglePeriod')?.value;
+    const file=document.getElementById('mpSingleFile')?.files?.[0];
+    const status=document.getElementById('mpSingleStatus');
+    const btn=document.getElementById('mpSingleSave');
+    if(!id||!['payslip','hours'].includes(type)||!period||!file){
+      status.textContent='יש לבחור עובד, סוג מסמך, חודש וקובץ PDF.';
+      status.className='mpStatus bad';return;
+    }
+    if(!/\.pdf$/i.test(file.name)||file.size===0||file.size>12*1024*1024){
+      status.textContent='אפשר להעלות PDF תקין עד 12MB בלבד.';
+      status.className='mpStatus bad';return;
+    }
+    let target=staff.find(x=>String(x.id)===id);
+    if(!target){status.textContent='העובד לא נמצא ברשימת העובדים המעודכנת. רענן ובחר שוב.';status.className='mpStatus bad';return}
+    const inactive=target.is_active===false;
+    const confirmText='לשמור '+(type==='payslip'?'תלוש שכר':'דוח שעות')+' של '+target.full_name+' בארכיון'+(inactive?'? העובד יישאר לא פעיל, ללא גישה לפורטל.':'?');
+    if(!confirm(confirmText))return;
+    btn.disabled=true;
+    let phase='בדיקת הקובץ',uploaded=false,registered=false;
+    const path=id+'/'+safe(period)+'/'+type+'-'+crypto.randomUUID()+'.pdf';
+    const stage=(message)=>{status.className='mpStatus';status.textContent=message};
     try{
-      const bytes=await file.arrayBuffer();await ensurePdf();
-      const pdf=await PDFLib.PDFDocument.load(bytes),pages=pdf.getPageCount();
+      stage('בודק את מסמך ה-PDF…');
+      const bytes=await file.arrayBuffer();
+      await ensurePdf();
+      const pdf=await PDFLib.PDFDocument.load(bytes);
+      const pages=pdf.getPageCount();
       if(!pages)throw new Error('המסמך אינו כולל עמודים');
-      const up=await supabaseClient.storage.from('employee-documents').upload(path,new Blob([bytes],{type:'application/pdf'}),{contentType:'application/pdf',upsert:false});
-      if(up.error)throw up.error;uploaded=true;
-      const reg=await supabaseClient.rpc('admin_register_employee_document',{p_staff_id:staffId,p_doc_type:type,p_period_label:period,p_storage_path:path,p_original_file_name:file.name,p_page_from:1,p_page_to:pages,p_retention_days:3650});
+      // Retain the inactive staff id rather than changing their status or granting login.
+      phase='אחסון הקובץ';
+      stage('מעלה קובץ לאחסון הפרטי…');
+      const upload=await supabaseClient.storage.from('employee-documents')
+        .upload(path,new Blob([bytes],{type:'application/pdf'}),{contentType:'application/pdf',upsert:false});
+      if(upload.error)throw upload.error;
+      uploaded=true;
+      phase='רישום המסמך לעובד';
+      stage('משייך את המסמך לעובד בארכיון…');
+      const reg=await supabaseClient.rpc('admin_register_employee_document',{
+        p_staff_id:id,p_doc_type:type,p_period_label:period,p_storage_path:path,
+        p_original_file_name:file.name,p_page_from:1,p_page_to:pages,p_retention_days:3650
+      });
       if(reg.error)throw reg.error;
-      status.className='mpStatus good';status.textContent='נשמר בהצלחה. המסמך יופיע לעובד באזור האישי תחת הנתונים שלי.';
-      document.getElementById('mpSingleFile').value='';await loadDash();
+      registered=true;
+      phase='אימות הרישום';
+      stage('בודק שהמסמך אכן מופיע בארכיון…');
+      const check=await supabaseClient.rpc('admin_list_employee_documents_v2',{p_period:period});
+      if(check.error)throw check.error;
+      const verified=(check.data||[]).some(row=>String(row.staff_id)===id&&row.storage_path===path);
+      if(!verified)throw new Error('המסמך טרם אותר ברשימת הארכיון. אין להעלות שוב לפני בדיקה.');
+      status.className='mpStatus good';
+      status.textContent=inactive
+        ?'המסמך נשמר ואומת בארכיון של העובד הלא פעיל. החשבון לא הופעל והגישה לפורטל נשארת חסומה.'
+        :'המסמך נשמר ואומת בארכיון הפרטי של העובד.';
+      document.getElementById('mpSingleFile').value='';
+      await loadDash();
     }catch(error){
-      console.error('saveSinglePdf',error);
-      if(uploaded)await supabaseClient.storage.from('employee-documents').remove([path]);
-      status.className='mpStatus bad';status.textContent='ההעלאה נכשלה, לא בוצעה מסירה. '+(error?.message||'');
+      console.error('employee document upload: '+phase,error);
+      status.className='mpStatus bad';
+      if(registered){
+        // A successful registry RPC must never be undone after a readback failure.
+        status.textContent='רישום המסמך התקבל, אך אימות הארכיון לא הושלם. הקובץ לא נמחק. בדוק את הארכיון לפני ניסיון חוזר. שלב: '+phase+'.';
+      }else{
+        if(uploaded){
+          const cleanup=await supabaseClient.storage.from('employee-documents').remove([path]);
+          if(cleanup.error)console.error('orphan document cleanup',cleanup.error);
+        }
+        status.textContent='העלאת המסמך לא הושלמה בשלב: '+phase+'. '+
+          (inactive&&phase==='רישום המסמך לעובד'?'ייתכן שהשרת חוסם רישום לעובד לא פעיל; נדרשת בדיקת הרשאות. ': '')+
+          (error?.message||'')+' לא בוצעה מסירה.';
+      }
     }finally{btn.disabled=false}
   }
+
   function printPayrollPolicy(){
     if(!isAdmin())return;const body=document.getElementById('mpPolicyText')?.innerHTML;if(!body)return;
     const w=window.open('','_blank');if(!w){toast?.('יש לאפשר חלון הדפסה בדפדפן');return}
