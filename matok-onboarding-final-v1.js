@@ -144,7 +144,7 @@ async function linkExisting(){
    const r=await supabaseClient.rpc('admin_link_onboarding_existing',{p_record_id:active.id,p_staff_id:id});
    if(r.error)throw r.error;active.review_status='approved';
    notify('הרשומה שויכה לעובד הקיים. לא נוצר עובד כפול.');
-   document.getElementById('obReview').innerHTML='';await load();
+   document.getElementById('obReview').innerHTML='';busy=false;await load();
  }catch(e){console.error('onboarding link',e);notify('שיוך לעובד הקיים נכשל.',true)}finally{busy=false}
 }
 async function approveNew(){
@@ -164,7 +164,7 @@ async function approveNew(){
    const r=await supabaseClient.rpc('admin_approve_onboarding_new',{p_record_id:active.id,p_name:details.full_name,p_phone:details.phone,p_username:username,p_code:pin,p_role:role,p_settings:{}});
    if(r.error)throw r.error;
    document.getElementById('obPin').value='';notify('העובד נקלט ואושר. פרטי הכניסה נשלחים רק דרך ניהול העובדים.');
-   document.getElementById('obReview').innerHTML='';await load();
+   document.getElementById('obReview').innerHTML='';busy=false;await load();
    try{await loadAdminData()}catch(e){console.warn('refresh employee list',e)}
    document.getElementById('mpRefreshStaff')?.click();
  }catch(e){console.error('onboarding approve',e);notify('קליטת העובד נכשלה: '+(e?.message||'שגיאה'),true)}finally{busy=false}
@@ -242,7 +242,7 @@ async function importOriginal(){
        const reg=await supabaseClient.rpc('admin_import_onboarding_file',{p_details:details,p_confidence:confidence,p_text:text,p_path:path,p_filename:file.name.slice(0,210)});
        if(reg.error)throw reg.error;
        notify('המסמך והפרטים נקלטו לבדיקת מנהל. טרם נוצר עובד.');
-       extracted.innerHTML='';document.getElementById('obFile').value='';tab('inbox');
+       extracted.innerHTML='';document.getElementById('obFile').value='';busy=false;tab('inbox');
      }catch(e){console.error('onboarding import',e);if(uploaded)await supabaseClient.storage.from('staff-onboarding-originals').remove([path]);notify('שמירת הקליטה נכשלה: '+(e?.message||'שגיאה'),true);b.disabled=false}
    };
    notify('הניתוח הסתיים. יש לבדוק ולאשר את הפרטים לפני שמירה.');
