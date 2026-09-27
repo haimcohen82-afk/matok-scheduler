@@ -2,7 +2,7 @@
   'use strict';
   const VERSION='20260928-payroll-intake-1';
   let profiles=[],hoursRows=[],docRows=[],pdfBytes=null,pdfPages=[],staff=[];
-  let pdfDocument=null,pdfSourceUrl=null,activeReviewPage=1,ocrWorker=null,staffModalLaunched=false,pdfSaved=false,savedStaffIds=new Set();
+  let pdfDocument=null,pdfSourceUrl=null,activeReviewPage=1,ocrWorker=null,staffModalLaunched=false,pdfSaved=false,savedStaffIds=new Set(),returnToReviewPage=0;
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const norm=v=>String(v??'').toLowerCase().replace(/[\u0591-\u05C7]/g,'').replace(/[״”]/g,'"').replace(/[׳’]/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();
   const tokens=v=>norm(v).split(' ').filter(Boolean);
@@ -66,14 +66,15 @@
   }
   function openOriginalPdf(){
     if(!pdfSourceUrl)return;
-    const tab=window.open(pdfSourceUrl,'_blank','noopener');
+    const tab=window.open(pdfSourceUrl,'_blank');
+    if(tab)tab.opener=null;
     if(!tab)toast?.('הדפדפן חסם את פתיחת הקובץ. השתמש בתצוגת העמוד בתוך המערכת.');
   }
   function openNewPayrollStaff(pageIndex=-1){
     if(!isAdmin())return;
     if(typeof openEmployee!=='function'){toast?.('טופס קליטת עובד אינו זמין כרגע');return}
     staffModalLaunched=true;
-    if(pageIndex>=0)document.getElementById('mpPdfStatus').dataset.staffPage=String(pageIndex);
+    if(pageIndex>=0){returnToReviewPage=pageIndex+1;closeModal?.('mpPageReviewModal')}
     openEmployee(-1);
   }
   async function refreshPayrollStaff(){
@@ -85,6 +86,7 @@
       recalcPdfControls();
       const fresh=staff.filter(x=>!oldIds.has(x.id));
       setPdfStatus(fresh.length?'רשימת העובדים עודכנה. העובדים החדשים זמינים לבחירה ידנית; לא בוצע שיוך אוטומטי.':'רשימת העובדים נטענה מחדש.','good');
+      if(returnToReviewPage){const page=returnToReviewPage;returnToReviewPage=0;await openReviewPage(page)}
     }catch(e){console.error('refresh payroll staff',e);toast?.('לא ניתן לרענן את רשימת העובדים')}
   }
   function watchNewStaffModal(){
@@ -164,6 +166,7 @@
       try{
         const page=await pdfDocument.getPage(activeReviewPage),ocr=await ocrPage(page,activeReviewPage,true),match=matchPage(ocr);
         const row=pdfPages[activeReviewPage-1];
+        const shared=multipleStaffOnPage(ocr);if(shared.length>1){row.sharedRisk=true;row.staffId='';row.skip=false;match.reason='מסמך משותף ('+shared.join(', ')+') — יש להפריד לפני שיוך.'}
         row.source='ocr-high';row.textPreview=norm(ocr).slice(0,160);row.candidates=match.candidates||[];
         status.textContent='סריקה חוזרת הושלמה: '+(match.reason||'אין התאמה').concat('. בדוק את העמוד ובחר עובד ידנית.');
         renderPdfReview();
@@ -179,7 +182,7 @@
     document.getElementById('mpReviewPrev').disabled=pageNo===1;
     document.getElementById('mpReviewNext').disabled=pageNo===pdfPages.length;
     const r=pdfPages[pageNo-1],sel=document.getElementById('mpReviewStaff');
-    sel.innerHTML=pdfSelectors();sel.value=r.skip?'__skip__':r.staffId||'';
+    sel.innerHTML=r.sharedRisk?'<option value="">מסמך משותף — אי אפשר לשייך</option><option value="__skip__">דלג על עמוד משותף</option>':pdfSelectors();sel.value=r.skip?'__skip__':r.staffId||'';
     document.getElementById('mpReviewDescription').textContent=r.reason||'תצוגה מקורית, ללא שינוי בקובץ.';
     document.getElementById('mpReviewStatus').textContent='בדוק את השם בתלוש או בדוח לפני אישור.';
     openModal?.('mpPageReviewModal');
@@ -193,6 +196,13 @@
   }
 
 
+  function multipleStaffOnPage(text){
+    const words=tokens(text);
+    return staff.filter(person=>{
+      const n=tokens(person.full_name);
+      return n.length>=2&&n.every(x=>x.length>=2)&&words.some((_,i)=>n.every((x,j)=>words[i+j]===x));
+    }).map(x=>x.full_name);
+  }
   function matchPage(text){
     const pageTokens=tokens(text),arr=[];
     if(!pageTokens.length)return {staffId:'',confidence:'low',reason:'אין טקסט קריא',candidates:[]};
@@ -289,7 +299,9 @@
             ocrCount++;
           }catch(ocrError){ocrFailures++;console.warn('OCR failed on page',n,ocrError)}
         }
-        pdfPages.push({page:n,staffId:match.staffId||'',suggestedId:match.suggestedId||'',candidates:match.candidates||[],confidence:match.confidence||'low',reason:match.reason||'',source,textPreview:norm(text).slice(0,160),skip:false,manual:false});
+        const shared=multipleStaffOnPage(text);
+        if(shared.length>1){match.staffId='';match.confidence='low';match.reason='נמצאו שמות של כמה עובדים באותו עמוד ('+shared.join(', ')+'). אין לשייך עמוד משותף לעובד אחד; יש לייצא ולפצל או לקבל דוח אישי.'}
+        pdfPages.push({page:n,staffId:match.staffId||'',suggestedId:shared.length>1?'':match.suggestedId||'',candidates:shared.length>1?[]:match.candidates||[],confidence:match.confidence||'low',reason:match.reason||'',source,textPreview:norm(text).slice(0,160),skip:false,manual:false,sharedRisk:shared.length>1});
       }
       renderPdfReview();
       recalcPdfControls();
@@ -314,18 +326,20 @@
       const label=r.skip?'דולג':r.manual?'אושר ידנית':r.confidence==='high'?'זוהה בוודאות':r.confidence==='medium'?'הצעה לבדיקה':'בדיקה ידנית';
       const cls=r.staffId?'high':r.skip?'medium':'low';
       const disabled=pdfSaved?' disabled':'';
+      const rowOptions=r.sharedRisk?'<option value="">מסמך משותף — אין התאמה בטוחה</option><option value="__skip__">דלג ושמור בנפרד לבדיקה</option>':opts;
       return '<div class="mpPdfRow'+(r.skip?' isSkipped':'')+'" data-pdf-row="'+i+'">'
         +'<div><b>עמוד '+r.page+'</b><span class="mpConfidence '+cls+'">'+label+'</span></div>'
         +'<div><small>'+esc(r.reason||'לא זוהה')+(r.source?.includes('OCR')?' · OCR':'')+'</small>'
         +'<div class="mpPreview">'+esc(r.textPreview||'אין טקסט קריא — יש לפתוח את העמוד')+'</div>'
         +(suggestions&&!r.staffId?'<small style="color:#386d66">התאמות אפשריות: '+esc(suggestions)+'</small>':'')
         +'<div class="mpRowTools"><button type="button" class="btn secondary" data-mp-preview="'+r.page+'">פתח עמוד</button><button type="button" class="btn secondary" data-mp-new="'+i+'">+ עובד חדש</button></div></div>'
-        +'<label style="display:grid;gap:5px">התאמה לעובד<select aria-label="התאמה לעובד לעמוד '+r.page+'" data-mp-page="'+i+'"'+disabled+'>'+opts+'</select></label></div>';
+        +'<label style="display:grid;gap:5px">התאמה לעובד<select aria-label="התאמה לעובד לעמוד '+r.page+'" data-mp-page="'+i+'"'+disabled+'>'+rowOptions+'</select></label></div>';
     }).join('');
     box.innerHTML=pdfPages.length?'<div class="mpReviewIntro" style="margin:12px 0;padding:13px;background:#eef9f6;border:1px solid #b4dbd4;border-radius:13px"><strong>בדיקת ההתאמה לפני שמירה</strong><div class="mpPdfSummary">'+matched+' משויכים · '+pending+' לבדיקה · '+skipped+' דולגו</div><small>פתח עמוד כדי לראות את המסמך, ובחר עובד מתוך הרשימה. אפשר להוסיף עובד חסר בלי לאבד את הקליטה.</small></div>'+rows:'';
     box.querySelectorAll('[data-mp-page]').forEach(sel=>{
       const i=Number(sel.dataset.mpPage),r=pdfPages[i];
       sel.value=r.skip?'__skip__':r.staffId||'';
+      if(r.sharedRisk && !r.skip)sel.value='';
       sel.onchange=()=>{
         const v=sel.value;
         r.skip=v==='__skip__';r.staffId=r.skip?'':v;r.manual=!!v;r.confidence=r.staffId?'high':'low';
