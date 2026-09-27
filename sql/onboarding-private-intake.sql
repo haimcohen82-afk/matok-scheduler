@@ -86,7 +86,7 @@ begin
   v_phone=regexp_replace(coalesce(p_data->>'phone',''),'[^0-9+]','','g');
   if length(v_name)<2 or length(v_phone)<9 or length(v_phone)>16 then
     raise exception 'name_and_phone_required'; end if;
-  if p_data->>'consent'<>'true' then raise exception 'consent_required'; end if;
+  if coalesce(p_data->>'consent','')<>'true' then raise exception 'consent_required'; end if;
   v_details=jsonb_build_object(
     'full_name',v_name,'phone',v_phone,
     'email',left(coalesce(p_data->>'email',''),180),
