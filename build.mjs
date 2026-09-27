@@ -218,5 +218,11 @@ await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODUL
 for(const asset of ['manifest.webmanifest','favicon.svg','onboarding.html']){
   await copyFile(asset,`dist/${asset}`);
 }
+// Publish MATOK OAuth consent/login alongside the existing application build.
+// The route files live in this isolated PR and do not modify app-shell or existing scripts.
+for (const route of ['oauth/consent','login']) {
+  await mkdir(`dist/${route}`,{recursive:true});
+  await copyFile(`${route}/index.html`,`dist/${route}/index.html`);
+}
 console.log(`MATOK build complete: ${buildId}`);
 console.log(`Output: dist/index.html (${Buffer.byteLength(html)} bytes)`);
