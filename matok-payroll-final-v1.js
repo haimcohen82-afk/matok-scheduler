@@ -248,34 +248,58 @@
       return result?.data?.text||'';
     }finally{canvas.width=0;canvas.height=0}
   }
+
   async function analyzePdf(){
-    const file=document.getElementById('mpPdfFile').files?.[0],period=document.getElementById('mpPdfPeriod').value,useOcr=document.getElementById('mpUseOcr')?.checked!==false;
-    if(!file){setPdfStatus('יש לבחור קובץ PDF.','bad');return}
+    const file=document.getElementById('mpPdfFile').files?.[0];
+    const photos=[...(document.getElementById('mpCameraFile')?.files||[])];
+    const period=document.getElementById('mpPdfPeriod').value;
+    const useOcr=document.getElementById('mpUseOcr')?.checked!==false;
+    if(!file&&!photos.length){setPdfStatus('בחר קובץ PDF או תמונות של מסמכים.','bad');return}
+    if(file&&photos.length){setPdfStatus('בחר PDF או תמונות, לא את שניהם.','bad');return}
     if(!period){setPdfStatus('יש לבחור חודש.','bad');return}
-    setPdfStatus('קורא את ה-PDF ומזהה עובדים…');document.getElementById('mpSavePdf').disabled=true;
+    if(file&&file.size>60*1024*1024){setPdfStatus('קובץ גדול מדי לעיבוד בטלפון. ניתן לפצל לקבצים קטנים יותר.','bad');return}
+    pdfSaved=false;savedStaffIds.clear();
+    setPdfStatus('קורא את המסמכים ומזהה עובדים…');
+    document.getElementById('mpSavePdf').disabled=true;
     try{
-      await ensurePdf();await getStaff(true);pdfBytes=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:pdfBytes.slice(0)}).promise;pdfPages=[];
-      let ocrCount=0;
-      for(let n=1;n<=pdf.numPages;n++){
-        const page=await pdf.getPage(n),tc=await page.getTextContent(),raw=tc.items.map(i=>i.str||'').join(' ');
-        let text=raw,match=matchPage(text),source='text';
+      await ensurePdf();await getStaff(true);
+      if(pdfDocument){try{await pdfDocument.destroy()}catch(_){}pdfDocument=null}
+      if(pdfSourceUrl){URL.revokeObjectURL(pdfSourceUrl);pdfSourceUrl=null}
+      pdfBytes=file?await file.arrayBuffer():await cameraImagesToPdf(photos);
+      pdfSourceUrl=URL.createObjectURL(new Blob([pdfBytes],{type:'application/pdf'}));
+      pdfDocument=await pdfjsLib.getDocument({data:pdfBytes.slice(0)}).promise;
+      pdfPages=[];recalcPdfControls();
+      let ocrCount=0,ocrFailures=0;
+      if(pdfDocument.numPages>90)throw new Error('יש לפצל את הקובץ לקבוצות של עד 90 עמודים');
+      for(let n=1;n<=pdfDocument.numPages;n++){
+        setPdfStatus('מנתח עמוד '+n+' מתוך '+pdfDocument.numPages+'…');
+        const page=await pdfDocument.getPage(n),tc=await page.getTextContent();
+        const raw=tc.items.map(x=>(x.str||'')+(x.hasEOL?'\n':' ')).join('');
+        let text=raw,match=matchPage(raw),source='PDF';
         const readable=norm(raw).replace(/\s/g,'').length;
-        if(useOcr&&(readable<35||match.confidence==='low')){
+        if(useOcr&&(readable<40||match.confidence!=='high')){
           try{
             const ocr=await ocrPage(page,n);
-            if(norm(ocr).length>norm(text).length||match.confidence==='low'){
-              const ocrMatch=matchPage(ocr);
-              if(ocrMatch.confidence!=='low'||match.confidence==='low'){text=ocr;match=ocrMatch;source='ocr';ocrCount++}
+            const combined=raw+'\n'+ocr;
+            const ocrMatch=matchPage(combined);
+            const strength={low:0,medium:1,high:2};
+            if((strength[ocrMatch.confidence]||0)>(strength[match.confidence]||0)||(ocrMatch.confidence===match.confidence&&ocrMatch.score>match.score+20)){
+              text=combined;match=ocrMatch;source='OCR+PDF';
             }
-          }catch(ocrError){console.warn('OCR failed on page',n,ocrError)}
+            ocrCount++;
+          }catch(ocrError){ocrFailures++;console.warn('OCR failed on page',n,ocrError)}
         }
-        pdfPages.push({page:n,staffId:match.staffId||'',confidence:match.confidence||'low',reason:match.reason||'',source,textPreview:norm(text).slice(0,90)});
+        pdfPages.push({page:n,staffId:match.staffId||'',suggestedId:match.suggestedId||'',candidates:match.candidates||[],confidence:match.confidence||'low',reason:match.reason||'',source,textPreview:norm(text).slice(0,160),skip:false,manual:false});
       }
       renderPdfReview();
-      const matched=pdfPages.filter(x=>x.staffId).length,manual=pdfPages.length-matched;
-      document.getElementById('mpSavePdf').disabled=manual>0;
-      setPdfStatus(`נותחו ${pdfPages.length} עמודים · זוהו ${matched} · OCR הופעל ב-${ocrCount}${manual?` · ${manual} דורשים שיוך ידני`:''}.`,manual?'':'good');
-    }catch(e){console.error(e);setPdfStatus('לא ניתן לנתח את הקובץ. נסה שוב; אם עמוד לא מזוהה, ניתן לבחור את העובד ידנית לפני השמירה.','bad')}
+      recalcPdfControls();
+      const matched=pdfPages.filter(x=>!!x.staffId).length,manual=pdfPages.length-matched;
+      setPdfStatus('נותחו '+pdfPages.length+' עמודים · '+matched+' זוהו בוודאות · '+manual+' לבדיקה ידנית · '+ocrCount+' נסרקו ב-OCR'+(ocrFailures?' · '+ocrFailures+' עמודים ללא OCR, יש לבדוק ידנית':'')+'.',manual?'':'good');
+    }catch(e){
+      console.error('analyzePdf',e);
+      setPdfStatus('לא ניתן לנתח את הקובץ: '+(e?.message||'שגיאה')+'. אפשר להעלות קובץ קטן יותר או לנסות שוב.','bad');
+      recalcPdfControls();
+    }
   }
   function renderPdfReview(){
     const box=document.getElementById('mpPdfReview'),opts='<option value="">לא זוהה — לבחור ידנית</option>'+['פעילים','לא פעילים'].map((label,i)=>`<optgroup label="${label}">${staff.filter(s=>Boolean(s.is_active)===(i===0)).map(s=>`<option value="${s.id}">${esc(s.full_name)}${s.is_active?'':' · לא פעיל'}</option>`).join('')}</optgroup>`).join('');
