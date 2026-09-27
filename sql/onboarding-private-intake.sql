@@ -36,7 +36,7 @@ values ('staff-onboarding-originals','staff-onboarding-originals',false,12582912
         array['application/pdf','image/jpeg','image/png','image/webp',
               'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
               'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              'text/plain','text/csv'])
+              'application/vnd.ms-excel','text/plain','text/csv'])
 on conflict(id) do nothing;
 
 drop policy if exists matok_onboard_admin_read on storage.objects;
