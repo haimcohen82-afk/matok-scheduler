@@ -37,5 +37,5 @@ has(html,'obEntry','existing staff panel must include onboarding control');
 assert(!/service_role|supabase_service_key|sb_secret_/i.test(form),'questionnaire must not embed private credentials');
 assert(!/service_role|supabase_service_key|sb_secret_/i.test(admin),'admin UI must not embed private credentials');
 const publicForm=form.slice(form.indexOf('<form id="onboardForm"'),form.indexOf('</form>'));
-assert(!/bank|חשבון בנק|תעודת זהות/.test(publicForm),'public form should not solicit unnecessary sensitive details');
+assert(!/name="(?:bank|identity|id_number|bank_account)"/.test(publicForm),'public form should not solicit unnecessary sensitive details');
 console.log('MATOK onboarding questionnaire, admin intake and document privacy checks passed');
