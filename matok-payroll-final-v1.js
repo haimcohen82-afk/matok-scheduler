@@ -37,7 +37,30 @@
     p.querySelectorAll('[data-mp]').forEach(b=>b.onclick=()=>{p.querySelectorAll('[data-mp]').forEach(x=>{x.classList.toggle('primary',x===b);x.classList.toggle('secondary',x!==b)});p.querySelectorAll('.mpSub').forEach(x=>x.classList.toggle('active',x.id==='mp-'+b.dataset.mp));if(b.dataset.mp==='dash')loadDash();if(b.dataset.mp==='hours')loadHoursAdmin();if(b.dataset.mp==='profiles')loadProfiles();if(b.dataset.mp==='delivery')loadDelivery();if(b.dataset.mp==='single')fillSingleStaff()});
     p.querySelectorAll('[data-mp-doc-choice]').forEach(b=>b.onclick=()=>{const s=document.getElementById('mpPdfType');if(s){s.value=b.dataset.mpDocChoice;syncUploadChoice()}});const typeSelect=document.getElementById('mpPdfType');if(typeSelect)typeSelect.onchange=syncUploadChoice;syncUploadChoice();document.getElementById('mpRefreshDash').onclick=loadDash;document.getElementById('mpAnalyzePdf').onclick=analyzePdf;document.getElementById('mpSavePdf').onclick=savePdf;document.getElementById('mpSaveHours').onclick=saveHours;document.getElementById('mpImportHours').onchange=importHours;document.getElementById('mpExportHours').onclick=exportHours;document.getElementById('mpRefreshHours').onclick=loadHoursAdmin;document.getElementById('mpRefreshDelivery').onclick=loadDelivery;document.getElementById('mpExportDelivery').onclick=exportDelivery;document.getElementById('mpSingleSave').onclick=saveSinglePdf;document.getElementById('mpSinglePeriod').value=periodNow();document.getElementById('mpPrintPolicy').onclick=printPayrollPolicy;
   }
-  async function getStaff(force=false){if(staff.length&&!force)return staff;const {data,error}=await supabaseClient.from('staff').select('id,full_name,phone,username,role_name,is_active').order('is_active',{ascending:false}).order('full_name');if(error)throw error;staff=data||[];return staff}
+  async function getStaff(force=false){
+    if(staff.length&&!force)return staff;
+    const primary=await supabaseClient.from('staff')
+      .select('id,full_name,phone,username,role_name,is_active')
+      .order('is_active',{ascending:false}).order('full_name');
+    let rows=primary.error?[]:(primary.data||[]);
+    // When a staff table policy limits the direct list, the existing admin
+    // payroll-profile RPC can still supply the archived staff identifiers.
+    if(isAdmin()){
+      const archived=await supabaseClient.rpc('admin_list_payroll_profiles_v2');
+      if(!archived.error){
+        const known=new Set(rows.map(x=>String(x.id)));
+        for(const p of archived.data||[]){
+          const id=String(p.staff_id||'');
+          if(!id||known.has(id))continue;
+          rows.push({id,full_name:p.full_name||'עובד ללא שם',phone:p.phone||'',
+            username:p.username||'',role_name:p.role_name||'מכירה',is_active:p.is_active===true});
+          known.add(id);
+        }
+      }else if(primary.error)throw primary.error;
+    }else if(primary.error)throw primary.error;
+    staff=rows;
+    return staff;
+  }
   async function loadDash(){if(!isAdmin())return;const period=document.getElementById('mpDashPeriod')?.value||periodNow();const {data,error}=await supabaseClient.rpc('admin_payroll_dashboard',{p_period:period});if(error)return;const x=data?.[0]||{};document.getElementById('mpStaff').textContent=x.active_staff??0;document.getElementById('mpPayslips').textContent=x.payslips??0;document.getElementById('mpDelivered').textContent=x.delivered??0;document.getElementById('mpHours').textContent=x.hours_rows??0}
   function setPdfStatus(t,kind=''){const x=document.getElementById('mpPdfStatus');if(x){x.className='mpStatus '+kind;x.textContent=t}}
   function matchPage(text){
@@ -182,6 +205,7 @@
     box.querySelectorAll('[data-review-doc]').forEach(b=>b.onclick=async()=>{const r=await supabaseClient.rpc('admin_mark_employee_document',{p_document_id:b.dataset.reviewDoc,p_action:'reviewed'});if(r.error){toast?.('הסימון נכשל');return}loadDelivery()});
     box.querySelectorAll('[data-wa-doc]').forEach(b=>b.onclick=()=>{
       const r=docRows.find(x=>x.id===b.dataset.waDoc);if(!r)return;
+      if(staff.find(x=>String(x.id)===String(r.staff_id))?.is_active===false){toast?.('העובד לא פעיל: המסמך נשמר בארכיון, אך אין לו גישה לפורטל. יש למסור את המסמך בדרך מתאימה לאחר אימות זהות.');return}
       if(!r.phone){toast?.('לעובד אין מספר טלפון שמור');return}
       const msg='היי '+r.full_name+',\n'+(r.doc_type==='payslip'?'תלוש השכר':'דוח השעות')+' שלך לחודש '+r.period_label+' זמין באזור האישי במערכת MATOK.\n\nכניסה:\nhttps://voluble-marigold-95c410.netlify.app/?login=employee\n\nלאחר הכניסה: הנתונים שלי ← תלושים ודוחות.';
       window.open('https://wa.me/'+phone972(r.phone)+'?text='+encodeURIComponent(msg),'_blank');
