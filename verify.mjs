@@ -12,6 +12,7 @@ const syntaxFiles=[
   'matok-realtime-final-v1.js',
   'matok-admin-tools-final-v1.js',
   'matok-manager-home-final-v1.js',
+  'matok-onboarding-final-v1.js',
   'matok-availability-roster-final-v1.js',
   'matok-compact-install-v2.js',
   'matok-attendance-employee-v1.js',
@@ -22,6 +23,7 @@ const syntaxFiles=[
   'tests/schedule-regression.mjs',
   'tests/requirements-17.mjs',
   'tests/payroll-intake-ux.mjs',
+  'tests/onboarding-flow.mjs',
   'tests/inactive-payroll.mjs'
 ];
 
@@ -42,5 +44,6 @@ run(['tests/schedule-regression.mjs'],'schedule regression checks');
 run(['tests/requirements-17.mjs'],'17 requirement checks');
 run(['tests/inactive-payroll.mjs'],'inactive employee and payroll regression checks');
 run(['tests/payroll-intake-ux.mjs'],'payroll intake OCR, manual review and privacy regression checks');
+run(['tests/onboarding-flow.mjs'],'staff intake questionnaire and admin approval regression checks');
 run(['tests/attendance-compact.mjs'],'attendance and compact portal checks');
 console.log('MATOK production verification passed');
