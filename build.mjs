@@ -13,7 +13,8 @@ const MODULES=[
   'matok-realtime-final-v1.js',
   'matok-admin-tools-final-v1.js',
   'matok-manager-home-final-v1.js',
-  'matok-availability-roster-final-v1.js'
+  'matok-availability-roster-final-v1.js',
+  'matok-navigation-final-v1.js'
 ];
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
@@ -205,7 +206,7 @@ for(const required of [
   'mfPrintScheduleBtn','mfEditHistoryModal','mfManagerWeeks','mfOpenCurrentWeek','settingsRows','supplies',
   'mfFinalEmployeeInit','mfFinalAdminInit','mpSingleSave','mpPrintPolicy','mfOpenPayrollAttendancePdf','mfOpenPayrollArchive','employee_get_schedule_notice','employee_mark_schedule_viewed','mfScheduleNotice',
   'admin_get_week_availability_roster','mfRosterEmployee','MATOK_BATCH_ASSIGN_V1',
-  'mfPublishedAvailabilityHidden','mfEmployeeLoginHelp','payrollBootKey','פתח הבא ב-WhatsApp'
+  'mfPublishedAvailabilityHidden','mfEmployeeLoginHelp','payrollBootKey','פתח הבא ב-WhatsApp','matokRefreshBackNavigation'
 ])if(!html.includes(required))throw new Error(`production build missing required capability or shell dependency: ${required}`);
 
 await writeFile('dist/index.html',html,'utf8');
