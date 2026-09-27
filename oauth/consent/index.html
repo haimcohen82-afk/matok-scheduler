@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MATOK — אישור חיבור מאובטח</title>
+<meta name="referrer" content="no-referrer"/><meta name="robots" content="noindex,nofollow"/>
+<style>body{font-family:Arial, sans-serif;background:#f5f0e8;color:#1a1a2e;min-height:100vh;margin:0;display:grid;place-items:center}main{box-sizing:border-box;background:#fff;padding:28px;width:min(94vw,560px);border-radius:15px;box-shadow:0 8px 40px #1a1a2e1a}h1{font-size:26px}.stripes{display:flex;gap:5px}.stripes span{flex:1;height:5px}code,.meta{overflow-wrap:anywhere}.info{margin:1em 0;padding:14px;background:#f5f0e8;border-radius:9px}.info div{margin:8px 0}button{cursor:pointer;padding:13px 25px;border:0;border-radius:8px;font-weight:bold;font-size:16px}button:disabled{opacity:.5;cursor:wait}.yes{background:#1a1a2e;color:white}.no{background:#ece8e1;color:#1a1a2e}.actions{display:flex;gap:12px;margin:20px 0}#err{color:#a22724}small{font-size:13px;color:#505060}</style></head><body><main>
+<h1>MATOK BASIC</h1><div class="stripes"><span style="background:#e8826a"></span><span style="background:#6bbfb5"></span><span style="background:#a7cb8e"></span><span style="background:#7eb4dc"></span><span style="background:#f2c77a"></span></div>
+<h2>אישור גישה למערכת</h2><p>לפני אישור החיבור, בדוק את שם היישום ואת ההרשאות המבוקשות. אישור אינו מפרסם פוסטים.</p>
+<p id="status" role="status">בודק בקשת חיבור וחשבון...</p><section id="details" class="info" hidden>
+<div>יישום: <strong id="client"></strong></div><div>כתובת חזרה: <span id="return-url" class="meta"></span></div><div>הרשאות מבוקשות: <span id="scopes"></span></div>
+</section>
+<div class="actions"><button id="approve" class="yes" disabled>אני מאשר/ת</button><button id="deny" class="no" disabled>דחייה</button></div>
+<p id="err" role="alert"></p><small>לגישה למידע עסקי נדרש גם אימות בעל החשבון בשרת MATOK.</small></main>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const supabase=createClient("https://hotfvqqzahakumwadtiy.supabase.co","sb_publishable_m_gos4Hv-QH8zWxiC6PjkQ_stnTrzRg",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const id=new URL(location.href).searchParams.get("authorization_id");
+const $=x=>document.getElementById(x);
+function error(message){$("err").textContent=String(message||"שגיאה");$("status").textContent="לא ניתן להשלים את האישור.";}
+if(!id || !/^[a-zA-Z0-9_\-:.]{10,1024}$/.test(id)){error("קישור האישור חסר או שגוי");} else {
+ try {
+  const {data:userData,error:userError}=await supabase.auth.getUser();
+  if(userError||!userData?.user) {
+    const next=new URL("/login/",location.origin);
+    next.searchParams.set("authorization_id",id);
+    location.replace(next.toString());
+  } else {
+    const {data,error:detailsError}=await supabase.auth.oauth.getAuthorizationDetails(id);
+    if(detailsError||!data) throw Error(detailsError?.message||"לא נמצאה בקשת חיבור");
+    if(!("authorization_id" in data) && data.redirect_url){ location.assign(data.redirect_url);}
+    else {
+      $("client").textContent=data.client?.name||"יישום ללא שם";
+      $("return-url").textContent=data.redirect_uri||"לא ידוע";
+      $("scopes").textContent=data.scope||"לא צוין";
+      $("details").hidden=false;
+      $("status").textContent="בחר אם לאשר את ההרשאות המוצגות.";
+      $("approve").disabled=false;$("deny").disabled=false;
+      for(const [button,fn] of [["approve","approveAuthorization"],["deny","denyAuthorization"]]){
+        $(button).onclick=async()=>{
+          $("approve").disabled=true;$("deny").disabled=true;
+          $("status").textContent="מעבד החלטה...";
+          try{const {data:out,error:e}=await supabase.auth.oauth[fn](id);if(e||!out?.redirect_url)throw Error(e?.message||"הבקשה נכשלה");location.assign(out.redirect_url);}catch(e){error(e.message);$("approve").disabled=false;$("deny").disabled=false;}
+        };
+      }
+    }
+  }
+ }catch(e){error(e.message);}
+}
+</script></body></html>
