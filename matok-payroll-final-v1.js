@@ -2,7 +2,7 @@
   'use strict';
   const VERSION='20260928-payroll-intake-1';
   let profiles=[],hoursRows=[],docRows=[],pdfBytes=null,pdfPages=[],staff=[];
-  let pdfDocument=null,pdfSourceUrl=null,activeReviewPage=1,ocrWorker=null,staffModalLaunched=false,pdfSaved=false;
+  let pdfDocument=null,pdfSourceUrl=null,activeReviewPage=1,ocrWorker=null,staffModalLaunched=false,pdfSaved=false,savedStaffIds=new Set();
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const norm=v=>String(v??'').toLowerCase().replace(/[\u0591-\u05C7]/g,'').replace(/[״”]/g,'"').replace(/[׳’]/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();
   const tokens=v=>norm(v).split(' ').filter(Boolean);
@@ -192,46 +192,61 @@
     }catch(e){console.error(e);document.getElementById('mpReviewStatus').textContent='לא ניתן להציג את העמוד. השתמש בקובץ המקורי.'}
   }
 
+
   function matchPage(text){
-    const t=norm(text),pageTokens=tokens(t),arr=[];
-    if(!t)return {staffId:'',confidence:'low',score:0,reason:'אין טקסט קריא'};
-    staff.forEach(s=>{
-      const n=norm(s.full_name),u=norm(s.username),parts=tokens(n),first=parts[0]||'',last=parts[parts.length-1]||'';
-      let score=0,reasons=[];
-      if(n&&t.includes(n)){score+=220;reasons.push('שם מלא')}
-      if(u&&t.includes(u)){score+=140;reasons.push('שם משתמש')}
-      const exactParts=parts.filter(p=>p.length>1&&pageTokens.includes(p));
-      if(parts.filter(p=>p.length>1).length>=2&&exactParts.length===parts.filter(p=>p.length>1).length){score+=130;reasons.push('כל חלקי השם')}
-      const firstHit=tokenHit(first,pageTokens);
-      if(firstHit.hit){
-        const sameFirst=staff.filter(x=>tokenHit(tokens(x.full_name)[0]||'',pageTokens).hit&&norm(x.full_name).split(' ')[0]===first).length;
-        score+=sameFirst<=1?90:45;
-        reasons.push(firstHit.fuzzy?'שם פרטי דומה':'שם פרטי')
+    const pageTokens=tokens(text),arr=[];
+    if(!pageTokens.length)return {staffId:'',confidence:'low',reason:'אין טקסט קריא',candidates:[]};
+    const locs=(value,prefix=false)=>pageTokens.map((w,i)=>(prefix?w.length>=3&&w.startsWith(value):w===value)?i:-1).filter(i=>i>=0);
+    for(const s of staff){
+      const parts=tokens(s.full_name),first=parts[0]||'',last=parts[parts.length-1]||'';
+      if(!first)continue;
+      const firstExact=locs(first),firstApprox=firstExact.length?[]:pageTokens.map((word,i)=>first.length>=4&&Math.abs(word.length-first.length)<=1&&levenshtein(first,word)===1?i:-1).filter(i=>i>=0);
+      const fi=firstExact.length?firstExact:firstApprox;
+      const u=tokens(s.username||'');
+      let score=0,reason=[];
+      const contiguous=parts.length>=2&&parts.every(p=>p.length>=2)&&pageTokens.some((_,i)=>parts.every((p,j)=>pageTokens[i+j]===p));
+      if(contiguous){score=290;reason.push('שם מלא רציף')}
+      if(u.length===1&&u[0].length>=5&&pageTokens.includes(u[0])){score+=195;reason.push('שם משתמש מדויק')}
+      if(fi.length){
+        score+=firstExact.length?47:15;
+        reason.push(firstExact.length?'שם פרטי מדויק':'שם פרטי דומה');
+        if(parts.length>=2){
+          const lastExact=last.length>=2?locs(last):[],lastInitial=last.length===1?locs(last,true):[];
+          const li=lastExact.length?lastExact:lastInitial;
+          const nearest=li.length?Math.min(...fi.flatMap(a=>li.map(b=>Math.abs(a-b)))):99;
+          if(nearest<=8){
+            if(lastExact.length){score+=nearest<=3?140:105;reason.push('שם משפחה סמוך')}
+            else if(nearest<=3){score+=78;reason.push('שם משפחה מקוצר סמוך')}
+          }
+        }
       }
-      if(last&&last!==first){
-        if(last.length>1){
-          const lh=tokenHit(last,pageTokens);if(lh.hit){score+=lh.fuzzy?55:85;reasons.push(lh.fuzzy?'שם משפחה דומה':'שם משפחה')}
-        }else if(firstHit.hit&&pageTokens.some(tok=>tok.length>1&&tok.startsWith(last))){score+=55;reasons.push('אות משפחה תואמת')}
-      }
-      if(score)arr.push({id:s.id,score,reasons});
-    });
+      if(score)arr.push({id:s.id,score,reasons:reason});
+    }
     arr.sort((a,b)=>b.score-a.score);
-    if(!arr.length)return {staffId:'',confidence:'low',score:0,reason:'לא נמצא שם תואם'};
+    if(!arr.length)return {staffId:'',confidence:'low',reason:'לא נמצא שם תואם',candidates:[]};
     const top=arr[0],second=arr[1],margin=top.score-(second?.score||0);
-    let confidence='low';
-    if(top.score>=170&&margin>=30)confidence='high';
-    else if(top.score>=85&&margin>=35)confidence='medium';
-    const staffId=confidence==='low'?'':top.id;
-    return {staffId,confidence,score:top.score,reason:top.reasons.join(' + ')||'התאמה',candidates:arr.slice(0,3)};
+    const fullProof=top.reasons.includes('שם מלא רציף')||top.reasons.includes('שם משתמש מדויק')||top.reasons.includes('שם משפחה סמוך');
+    const confidence=fullProof&&top.score>=180&&margin>=55?'high':top.score>=115&&margin>=42?'medium':'low';
+    // A shortened surname or a fuzzy OCR match is only a suggestion. Never
+    // auto-assign a confidential document on a first-name-only guess.
+    const staffId=confidence==='high'?top.id:'';
+    const candidates=arr.slice(0,3).map(x=>({id:x.id,score:x.score}));
+    const who=staff.find(x=>x.id===top.id);
+    return {staffId,suggestedId:top.id,confidence,score:top.score,reason:(staffId?'זוהה: ':'הצעה לבדיקה: ')+(who?.full_name||'')+' · '+top.reasons.join(' + '),candidates};
   }
-  async function ocrPage(page,pageNo){
+  async function ocrPage(page,pageNo,high=false){
     await ensureOcr();
-    const viewport=page.getViewport({scale:1.7}),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const viewport=page.getViewport({scale:high?2.45:1.85}),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
     canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
     await page.render({canvasContext:ctx,viewport}).promise;
-    setPdfStatus(`עמוד ${pageNo}: מפעיל OCR לזיהוי סריקה…`);
-    const result=await Tesseract.recognize(canvas,'heb+eng',{logger:m=>{if(m.status==='recognizing text'&&Number.isFinite(m.progress))setPdfStatus(`עמוד ${pageNo}: OCR ${Math.round(m.progress*100)}%`)}});
-    return result?.data?.text||'';
+    setPdfStatus('עמוד '+pageNo+': '+(high?'סריקה חוזרת בחדות גבוהה':'OCR לזיהוי מסמך סרוק')+'…');
+    try{
+      if(!ocrWorker)ocrWorker=await Tesseract.createWorker('heb+eng',1,{logger:m=>{
+        if(m.status==='recognizing text'&&Number.isFinite(m.progress))setPdfStatus('עמוד '+pageNo+': OCR '+Math.round(m.progress*100)+'%');
+      }});
+      const result=await ocrWorker.recognize(canvas);
+      return result?.data?.text||'';
+    }finally{canvas.width=0;canvas.height=0}
   }
   async function analyzePdf(){
     const file=document.getElementById('mpPdfFile').files?.[0],period=document.getElementById('mpPdfPeriod').value,useOcr=document.getElementById('mpUseOcr')?.checked!==false;
