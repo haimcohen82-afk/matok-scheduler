@@ -39,6 +39,11 @@ assert(manager.includes('if(active.original_path)add('));
 assert(manager.includes('admin_approve_onboarding_new'));
 assert(manager.includes('admin_link_onboarding_existing'));
 assert(manager.includes('admin_import_onboarding_file'));
+assert(manager.includes('admin_get_onboarding_text'));
+assert(manager.includes('showFullExtractedText'));
+assert(schema.includes('grant execute on function public.admin_get_onboarding_text(uuid) to authenticated'));
+assert(!schema.includes('grant execute on function public.admin_get_onboarding_text(uuid) to anon'));
+
 assert(manager.includes('window.matokOnboardingParseText=parseText'));
 
 // Test Hebrew field extraction including confidence and sensitive-document restraint.
