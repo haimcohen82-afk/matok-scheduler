@@ -39,6 +39,6 @@ jobs:
         with:
           deno-version: v2.x
       - name: Check Supabase Edge Functions
-        run: deno check meta-connector/supabase/matok-meta-backend.owner-approval.ts meta-connector/supabase/matok-meta-mcp.read-only.ts
+        run: deno check meta-connector/supabase/matok-meta-backend.owner-approval.ts meta-connector/supabase/matok-meta-mcp.read-only.ts meta-connector/supabase/matok-meta-mcp-v2-candidate.ts
       - name: Verify OAuth pages and security policy
         run: node meta-connector/scripts/verify-oauth-pages.mjs

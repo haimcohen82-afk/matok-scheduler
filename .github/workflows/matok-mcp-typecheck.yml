@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 7
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -27,4 +27,5 @@ jobs:
           grep -q 'supabase.auth.getUser' "$f"
           grep -q 'ownerUid' "$f"
           grep -q 'connection_status' "$f"
+          grep -q 'https://.*functions/v1/matok-meta-mcp' "$f" || grep -q 'resourceUrl' "$f"
           ! grep -Eq 'registerTool\("(publish_now|schedule_post|approve)' "$f"

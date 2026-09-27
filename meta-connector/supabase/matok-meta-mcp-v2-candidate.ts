@@ -1,8 +1,8 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import "jsr:@supabase/functions-js@2.117.2/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { McpServer } from "npm:@modelcontextprotocol/sdk@1.25.3/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "npm:@modelcontextprotocol/sdk@1.25.3/server/webStandardStreamableHttp.js";
-import { z } from "npm:zod@^4.1.13";
+import { z } from "npm:zod@4.6.5";
 
 // MATOK read-only MCP bridge v2. Uses documented MCP SDK imports and Supabase OAuth JWT validation.
 // CRITICAL: No publishing, draft approval, schedule, secret disclosure, or access to invoice data.
@@ -11,6 +11,8 @@ const publicKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const ownerUid = Deno.env.get("MATOK_OWNER_USER_ID") ?? "";
 const backendKey = Deno.env.get("MATOK_API_KEY") ?? "";
 const authIssuer = projectUrl + "/auth/v1";
+const resourceUrl = () => projectUrl.replace(/\/$/, "") + "/functions/v1/matok-meta-mcp";
+const resourceMetadataUrl = () => resourceUrl() + "/.well-known/oauth-protected-resource";
 const security = {
   "cache-control": "no-store",
   "x-content-type-options": "nosniff"
@@ -45,13 +47,10 @@ async function safeBackend(resource: "status" | "queue", limit = 20) {
 }
 Deno.serve(async (req) => {
   const url = new URL(req.url);
-  const resourceUrl = url.origin + url.pathname.replace(/\/+$/, "");
   if (url.pathname.endsWith("/.well-known/oauth-protected-resource")) {
-    const original = resourceUrl.slice(0, -"/.well-known/oauth-protected-resource".length);
-    return reply({ resource: original, authorization_servers: [authIssuer], bearer_methods_supported: ["header"] }, 200);
+    return reply({ resource: resourceUrl(), authorization_servers: [authIssuer], bearer_methods_supported: ["header"] }, 200);
   }
-  const challengeUrl = resourceUrl + "/.well-known/oauth-protected-resource";
-  const challenge = { "WWW-Authenticate": 'Bearer resource_metadata="' + challengeUrl + '"' };
+  const challenge = { "WWW-Authenticate": 'Bearer resource_metadata="' + resourceMetadataUrl() + '"' };
   if (!projectUrl || !publicKey || !ownerUid) return reply({ error: "MCP owner authentication not configured" }, 503);
   const match = /^Bearer (.+)$/i.exec(req.headers.get("authorization") ?? "");
   if (!match) return reply({ error: "Authentication required" }, 401, challenge);
