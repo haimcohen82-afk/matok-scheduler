@@ -23,6 +23,57 @@
       .mfPublishedAvailabilityHidden{background:#eef9f6;border:1px solid #abd8cf;border-radius:11px;padding:12px;line-height:1.55}
       .mfFinalSettingsCard{max-width:650px}
       .mfCurrentWeekEditBtn{background:#eef9f6!important;border-color:#9bcfc5!important;color:#245f56!important}
+
+      /* Consistent MATOK visual system; presentation only, no event or API changes */
+      :root{--ink:#172641;--cream:#f5f7fa;--soft:#f8fafc;--line:#dde4eb;--shadow:0 9px 26px rgba(23,38,65,.075)}
+      body{background:var(--cream)}
+      .wrap{max-width:1420px}
+      .top{background:#172641;border-bottom:3px solid #79bfb5;box-shadow:0 5px 18px rgba(14,28,48,.12)}
+      .top .brand b{font-weight:900;letter-spacing:.04em}
+      .tabs.adminTabs{background:white;border:1px solid var(--line);border-radius:16px;box-shadow:0 5px 18px rgba(23,38,65,.04);padding:7px;gap:5px}
+      .tabs.adminTabs button{border-radius:11px;min-height:43px;font-size:13px}
+      .tabs.adminTabs button.active{background:var(--ink);color:white}
+      #admin .card,#payrollFinal .card,.mfWeekHero{border:1px solid var(--line);border-radius:19px;box-shadow:0 6px 20px rgba(23,38,65,.05)}
+      #admin .card h2,#payrollFinal .card h2{letter-spacing:-.015em;line-height:1.3}
+      #admin .btn,#payrollFinal .btn,.mfPayrollShortcuts button{min-height:43px;border-radius:12px;transition:background .16s,transform .12s,box-shadow .16s}
+      #admin .btn:active,#payrollFinal .btn:active{transform:scale(.99)}
+      #admin .btn:focus-visible,#payrollFinal .btn:focus-visible,#worker button:focus-visible{outline:3px solid #4e9b92;outline-offset:3px}
+      #admin .btn.primary,#payrollFinal .btn.primary{background:#1d695f;color:#fff;border-color:#1d695f}
+      #admin .btn.primary:hover,#payrollFinal .btn.primary:hover{background:#165249}
+      #admin .btn.secondary,#payrollFinal .btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
+      #admin label,#payrollFinal label{line-height:1.5}
+      #admin input,#admin textarea,#admin select,#payrollFinal input,#payrollFinal select{min-height:43px;border-color:#cdd7e1;background:#fff}
+      #admin input:focus,#admin select:focus,#payrollFinal input:focus,#payrollFinal select:focus{outline:2px solid #86c3b8;outline-offset:1px}
+      .mfManagerWeeks .mfWeekHero{padding:20px 18px;background:#fff}
+      .mfManagerWeeks .mfWeekHero.current{border-right:5px solid #45988d}
+      .mfManagerWeeks .mfWeekHero.next{border-right:5px solid #e8826a}
+      .mfPayrollShortcuts{gap:10px}
+      .mfPayrollShortcuts button{padding:12px 14px;text-align:right;white-space:normal}
+      #payrollFinal .mpNav{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));overflow:visible;gap:8px;margin-bottom:15px}
+      #payrollFinal .mpNav button{min-height:64px;white-space:normal;text-align:center;border:1px solid var(--line);border-radius:15px;background:#fff;color:var(--ink);box-shadow:0 4px 10px rgba(23,38,65,.025)}
+      #payrollFinal .mpNav button.primary{background:#eaf6f3;color:#16564f;border:2px solid #4e9f92;box-shadow:0 6px 17px rgba(40,104,95,.10)}
+      #payrollFinal .mpSub>.card{padding:21px}
+      #payrollFinal .mpUploadSteps span{padding:13px 8px;border-radius:12px;background:#f5faf9;border:1px solid #d4e6e1;font-size:12px}
+      #payrollFinal .mpUploadChoice button{padding:17px 12px;border-radius:14px}
+      #payrollFinal .mpPdfRow{border:1px solid #d9e4e9;border-right:4px solid #70b2a6;padding:13px;gap:14px;border-radius:14px;background:#fff;margin-top:10px}
+      #payrollFinal .mpPdfRow:has(.mpConfidence.low){border-right-color:#d99375;background:#fffaf7}
+      #payrollFinal .mpPdfRow .btn{min-height:37px}
+      #payrollFinal .mpStatus{padding:13px;border:1px solid var(--line);border-radius:12px;line-height:1.6}
+      #payrollFinal .mpTable th{background:#eef4f5}
+      #payrollFinal .mpTable td,#payrollFinal .mpTable th{padding:12px 9px}
+      #worker .mfWelcome{box-shadow:0 12px 29px rgba(23,38,65,.13)}
+      #worker .mfAction{border-radius:22px;box-shadow:0 5px 17px rgba(23,38,65,.06);min-height:146px}
+      #worker .mfActionIcon{border-radius:50%;width:58px;height:58px;display:grid;place-items:center}
+      @media(max-width:760px){
+        .tabs.adminTabs{top:64px;border-radius:0}
+        .mfPayrollShortcuts{grid-template-columns:1fr 1fr}
+        #payrollFinal .mpNav{grid-template-columns:1fr 1fr}
+        #payrollFinal .mpNav button{min-height:60px;font-size:12px;padding:10px 7px}
+        #payrollFinal .mpSub>.card{padding:14px 12px}
+        #payrollFinal .mpUploadSteps{grid-template-columns:1fr}
+        #payrollFinal .mpUploadSteps span{text-align:right}
+        #payrollFinal .mpPdfRow{grid-template-columns:1fr}
+      }
     `;
     document.head.appendChild(s);
   }

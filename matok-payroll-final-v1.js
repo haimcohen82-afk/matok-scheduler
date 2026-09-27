@@ -1,7 +1,8 @@
 (() => {
   'use strict';
-  const VERSION='20260925-payroll-restore-2';
+  const VERSION='20260928-payroll-intake-1';
   let profiles=[],hoursRows=[],docRows=[],pdfBytes=null,pdfPages=[],staff=[];
+  let pdfDocument=null,pdfSourceUrl=null,activeReviewPage=1,ocrWorker=null,staffModalLaunched=false,pdfSaved=false,savedStaffIds=new Set();
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const norm=v=>String(v??'').toLowerCase().replace(/[\u0591-\u05C7]/g,'').replace(/[״”]/g,'"').replace(/[׳’]/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();
   const tokens=v=>norm(v).split(' ').filter(Boolean);
@@ -18,14 +19,16 @@
   async function ensurePdf(){if(!window.pdfjsLib)await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js');if(window.pdfjsLib)window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';if(!window.PDFLib)await loadScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js')}
   async function ensureOcr(){if(!window.Tesseract)await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js')}
   async function ensureXlsx(){if(!window.XLSX)await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js')}
-  function addStyles(){if(document.getElementById('mfPayrollStyles'))return;const s=document.createElement('style');s.id='mfPayrollStyles';s.textContent=`.mpNav{display:flex;gap:6px;overflow:auto;margin-bottom:10px}.mpNav button{white-space:nowrap}.mpSub{display:none}.mpSub.active{display:block}.mpGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.mpMetric{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px}.mpMetric span{font-size:10px;color:var(--muted);display:block}.mpMetric b{font-size:24px}.mpTable{overflow:auto}.mpTable table{width:100%;border-collapse:collapse;font-size:12px}.mpTable th,.mpTable td{padding:9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.mpTable th{background:var(--soft)}.mpPdfRow{display:grid;grid-template-columns:85px 1fr 220px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px;background:#fff;margin-top:6px}.mpStatus{padding:10px;border-radius:9px;background:var(--soft);margin-top:9px}.mpStatus.good{background:#e9f6e9;color:#2e6833}.mpStatus.bad{background:#fff0ed;color:#8d372f}.mpWorkerRow{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;margin-top:7px}.mpWorkerFacts{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.mpWorkerFacts span{font-size:10px;padding:4px 7px;border-radius:999px;background:var(--soft)}.mpConfidence{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:9px;font-weight:900;margin-top:4px}.mpConfidence.high{background:#dff2e2;color:#286333}.mpConfidence.medium{background:#fff0c7;color:#765a15}.mpConfidence.low{background:#f7deda;color:#8b342d}.mpPdfRow small{display:block;line-height:1.4}.mpPdfRow .mpPreview{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.mpOcrNote{margin-top:8px;padding:9px 10px;border-radius:9px;background:#eef7ff;color:#345d80;font-size:11px;line-height:1.5}.mpUploadChoice{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0 13px}.mpUploadChoice button{border:1px solid var(--line);background:#fff;border-radius:14px;padding:13px 10px;font-weight:900}.mpUploadChoice button.active{background:#eef9f6;border-color:#89c9bd;color:#285f57;box-shadow:0 6px 18px #1a1a2e0b}.mpUploadSteps{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0}.mpUploadSteps span{border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:8px;font-size:10px;font-weight:800;text-align:center}@media(max-width:850px){.mpGrid{grid-template-columns:1fr 1fr}.mpPdfRow{grid-template-columns:1fr}}@media(max-width:480px){.mpGrid{grid-template-columns:1fr}}`;document.head.appendChild(s)}
+  function addStyles(){if(document.getElementById('mfPayrollStyles'))return;const s=document.createElement('style');s.id='mfPayrollStyles';s.textContent=`.mpNav{display:flex;gap:6px;overflow:auto;margin-bottom:10px}.mpNav button{white-space:nowrap}.mpSub{display:none}.mpSub.active{display:block}.mpGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.mpMetric{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px}.mpMetric span{font-size:10px;color:var(--muted);display:block}.mpMetric b{font-size:24px}.mpTable{overflow:auto}.mpTable table{width:100%;border-collapse:collapse;font-size:12px}.mpTable th,.mpTable td{padding:9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.mpTable th{background:var(--soft)}.mpPdfRow{display:grid;grid-template-columns:85px 1fr 220px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px;background:#fff;margin-top:6px}.mpStatus{padding:10px;border-radius:9px;background:var(--soft);margin-top:9px}.mpStatus.good{background:#e9f6e9;color:#2e6833}.mpStatus.bad{background:#fff0ed;color:#8d372f}.mpWorkerRow{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;margin-top:7px}.mpWorkerFacts{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.mpWorkerFacts span{font-size:10px;padding:4px 7px;border-radius:999px;background:var(--soft)}.mpConfidence{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:9px;font-weight:900;margin-top:4px}.mpConfidence.high{background:#dff2e2;color:#286333}.mpConfidence.medium{background:#fff0c7;color:#765a15}.mpConfidence.low{background:#f7deda;color:#8b342d}.mpPdfRow small{display:block;line-height:1.4}.mpPdfRow .mpPreview{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.mpOcrNote{margin-top:8px;padding:9px 10px;border-radius:9px;background:#eef7ff;color:#345d80;font-size:11px;line-height:1.5}.mpUploadChoice{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0 13px}.mpUploadChoice button{border:1px solid var(--line);background:#fff;border-radius:14px;padding:13px 10px;font-weight:900}.mpUploadChoice button.active{background:#eef9f6;border-color:#89c9bd;color:#285f57;box-shadow:0 6px 18px #1a1a2e0b}.mpUploadSteps{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0}.mpUploadSteps span{border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:8px;font-size:10px;font-weight:800;text-align:center}@media(max-width:850px){.mpGrid{grid-template-columns:1fr 1fr}.mpPdfRow{grid-template-columns:1fr}}
+.mpPdfToolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.mpPdfToolbar .btn{flex:1;min-width:175px}.mpPdfRow{grid-template-columns:90px minmax(0,1fr) minmax(175px,230px)!important;gap:14px}.mpPdfRow.isSkipped{opacity:.8;background:#f7f7f7!important;border-right-color:#8997a6!important}.mpPdfRow .mpRowTools{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.mpPdfRow select{min-height:44px}.mpReviewModal section{width:min(1020px,100%);max-height:96vh}.mpReviewCanvasWrap{display:grid;place-items:center;overflow:auto;background:#e5eaf0;border:1px solid #cbd6e1;border-radius:13px;max-height:65vh;min-height:230px;margin:9px 0;padding:12px}.mpReviewCanvasWrap canvas{display:block;max-width:100%;height:auto;box-shadow:0 6px 18px #0002;background:white}.mpReviewModal .mpReviewActions{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0}.mpReviewModal .mpReviewActions .btn{flex:1}.mpPdfCamera{border:1px dashed #9fcac1;background:#f6fbf9;border-radius:11px;padding:10px}.mpPdfCamera input{margin-top:5px}.mpPdfSummary{font-size:13px;font-weight:800;margin:8px 0}@media(max-width:850px){.mpPdfRow{grid-template-columns:1fr!important}.mpPdfToolbar .btn{width:100%;min-width:0}.mpReviewModal section{width:100%;max-height:96vh}}
+@media(max-width:480px){.mpGrid{grid-template-columns:1fr}}`;document.head.appendChild(s)}
 
   function ensureAdminTab(){const tabs=document.querySelector('.adminTabs'),admin=document.getElementById('admin');if(!tabs||!admin)return false;let btn=tabs.querySelector('[data-target="payrollFinal"]');if(!btn){btn=document.createElement('button');btn.dataset.target='payrollFinal';btn.textContent='שכר ומסמכים';tabs.appendChild(btn);btn.onclick=()=>{tabs.querySelectorAll('button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');admin.querySelectorAll(':scope>.panel').forEach(x=>x.classList.remove('active'));document.getElementById('payrollFinal').classList.add('active');initPayrollAdminFinal()}}
     let p=document.getElementById('payrollFinal');if(!p){p=document.createElement('section');p.id='payrollFinal';p.className='panel';admin.appendChild(p)}return true}
   function syncUploadChoice(){const type=document.getElementById('mpPdfType')?.value||'payslip';document.querySelectorAll('#mp-pdf [data-mp-doc-choice]').forEach(b=>b.classList.toggle('active',b.dataset.mpDocChoice===type))}
   function adminHtml(){const p=document.getElementById('payrollFinal');if(!p||p.dataset.built==='1')return;p.dataset.built='1';p.innerHTML=`<div class="mpNav"><button class="btn primary" data-mp="dash">לוח בקרה</button><button class="btn secondary" data-mp="pdf">העלאת תלושים ודוחות</button><button class="btn secondary" data-mp="single">העלאה לעובד אחד</button><button class="btn secondary" data-mp="hours">שעות ובונוסים</button><button class="btn secondary" data-mp="profiles">נתוני שכר</button><button class="btn secondary" data-mp="delivery">ארכיון ומסירה</button><button class="btn secondary" data-mp="policy">נוהל שכר להדפסה</button></div>
     <section class="mpSub active" id="mp-dash"><div class="mpGrid"><article class="mpMetric"><span>עובדים פעילים</span><b id="mpStaff">—</b></article><article class="mpMetric"><span>תלושים בחודש</span><b id="mpPayslips">—</b></article><article class="mpMetric"><span>נמסרו</span><b id="mpDelivered">—</b></article><article class="mpMetric"><span>רשומות שעות</span><b id="mpHours">—</b></article></div><article class="card" style="margin-top:10px"><h2>מרכז שכר ונוכחות</h2><p>מעלים קובץ מרוכז של רואה החשבון או דוח שעות, בודקים את הזיהוי, והמערכת מפרקת אותו לקובץ פרטי לכל עובד.</p><label>חודש להצגה<input id="mpDashPeriod" type="month" value="${periodNow()}"></label><button class="btn secondary" id="mpRefreshDash" style="margin-top:8px">רענון</button></article></section>
-    <section class="mpSub" id="mp-pdf"><article class="card"><h2>העלאת תלושי שכר / דוחות שעות</h2><p><b>בחר מה אתה מעלה:</b></p><div class="mpUploadChoice"><button type="button" class="active" data-mp-doc-choice="payslip">תלושי שכר</button><button type="button" data-mp-doc-choice="hours">דוחות נוכחות / שעות</button></div><div class="mpUploadSteps"><span>1. בוחרים סוג וחודש</span><span>2. מעלים PDF ובודקים זיהוי</span><span>3. שומרים לעובדים</span></div><div class="truth" style="margin-bottom:10px"><b>איפה העובדים רואים?</b><br>אחרי השמירה, כל עובד רואה רק את המסמכים שלו באזור האישי תחת „הנתונים שלי”.</div><p>מעלים PDF מרוכז. המערכת מזהה שם מלא, שם מקוצר ושם משפחה, ובמידת הצורך מפעילה OCR גם על PDF סרוק כתמונה. לפני שמירה תמיד רואים את השיוך של כל עמוד.</p><div class="mpGrid"><label>סוג מסמך<select id="mpPdfType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות עבודה</option></select></label><label>חודש<input id="mpPdfPeriod" type="month" value="${periodNow()}"></label><label style="grid-column:span 2">PDF<input id="mpPdfFile" type="file" accept="application/pdf,.pdf"></label></div><label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;font-weight:800"><input id="mpUseOcr" type="checkbox" checked style="width:auto">להפעיל זיהוי OCR אוטומטי כאשר הטקסט ב-PDF אינו מספיק</label><div class="mpOcrNote">המערכת לא שומרת מסמך עד שכל העמודים משויכים לעובד. זיהוי ברמת ביטחון נמוכה נשאר לבחירה ידנית.</div><div class="actions" style="margin-top:9px"><button class="btn primary" id="mpAnalyzePdf">ניתוח וזיהוי</button><button class="btn secondary" id="mpSavePdf" disabled>פירוק ושמירה לעובדים</button></div><div id="mpPdfStatus" class="mpStatus">טרם נבחר קובץ.</div><div id="mpPdfReview"></div></article></section>
+    <section class="mpSub" id="mp-pdf"><article class="card"><h2>העלאת תלושי שכר / דוחות שעות</h2><p><b>בחר מה אתה מעלה:</b></p><div class="mpUploadChoice"><button type="button" class="active" data-mp-doc-choice="payslip">תלושי שכר</button><button type="button" data-mp-doc-choice="hours">דוחות נוכחות / שעות</button></div><div class="mpUploadSteps"><span>1. בוחרים סוג וחודש</span><span>2. מעלים PDF ובודקים זיהוי</span><span>3. שומרים לעובדים</span></div><div class="truth" style="margin-bottom:10px"><b>איפה העובדים רואים?</b><br>אחרי השמירה, כל עובד רואה רק את המסמכים שלו באזור האישי תחת „הנתונים שלי”.</div><p>מעלים PDF מרוכז. המערכת מזהה שם מלא, שם מקוצר ושם משפחה, ובמידת הצורך מפעילה OCR גם על PDF סרוק כתמונה. לפני שמירה תמיד רואים את השיוך של כל עמוד.</p><div class="mpGrid"><label>סוג מסמך<select id="mpPdfType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות עבודה</option></select></label><label>חודש<input id="mpPdfPeriod" type="month" value="${periodNow()}"></label><label style="grid-column:span 2">PDF<input id="mpPdfFile" type="file" accept="application/pdf,.pdf"></label></div><div class="mpPdfCamera" style="margin-top:12px"><b>צילום מהטלפון או תמונות מסמכים</b><small style="display:block">אפשר לצלם או לבחור כמה תמונות. התמונות יומרו ל-PDF לצורך זיהוי ובדיקה. בחר קובץ PDF או תמונות, לא שניהם.</small><input id="mpCameraFile" type="file" accept="image/*" multiple></div><div class="mpPdfToolbar"><button type="button" class="btn secondary" id="mpCreateStaff">+ עובד חדש</button><button type="button" class="btn secondary" id="mpRefreshStaff">רענון רשימת עובדים</button></div><label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;font-weight:800"><input id="mpUseOcr" type="checkbox" checked style="width:auto">להפעיל זיהוי OCR אוטומטי כאשר הטקסט ב-PDF אינו מספיק</label><div class="mpOcrNote">אפשר לפתוח כל עמוד ולבדוק אותו. עמוד שלא זוהה ניתן לשייך ידנית או לדלג עליו; הוא לא יישמר ולא יישלח לעובד. זיהוי לא ודאי מחייב בדיקה.</div><div class="actions" style="margin-top:9px"><button class="btn primary" id="mpAnalyzePdf">ניתוח וזיהוי</button><button class="btn secondary" id="mpSavePdf" disabled>פירוק ושמירת העמודים המשויכים</button></div><div class="mpPdfToolbar"><button type="button" class="btn secondary" id="mpOpenOriginal" disabled>צפייה בקובץ המקורי</button><button type="button" class="btn secondary" id="mpSkipUnmatched" disabled>דילוג על עמודים לא מזוהים</button><button type="button" class="btn secondary" id="mpDownloadUnmatched" disabled>הורדת העמודים שלא נקלטו</button></div><div id="mpPdfStatus" class="mpStatus" role="status" aria-live="polite">טרם נבחר קובץ.</div><div id="mpPdfReview"></div></article></section>
 
     <section class="mpSub" id="mp-single"><article class="card"><h2>העלאת מסמך לעובד מסוים</h2><p>קיבלת קובץ PDF נפרד מרואה החשבון? ניתן לשמור אותו ישירות בארכיון הפרטי של העובד.</p><div class="mpGrid"><label>עובד/ת<select id="mpSingleStaff"></select></label><label>סוג מסמך<select id="mpSingleType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות נוכחות</option></select></label><label>חודש<input type="month" id="mpSinglePeriod"></label><label>קובץ PDF<input id="mpSingleFile" type="file" accept="application/pdf,.pdf"></label></div><div class="truth" style="margin:10px 0"><b>לפני העלאה:</b> בדוק שהקובץ מכיל רק את פרטי העובד שנבחר. לאחר השמירה המסמך יופיע בחשבון האישי שלו בלבד.</div><button type="button" class="btn primary" id="mpSingleSave">שמירה בארכיון הפרטי</button><div class="mpStatus" id="mpSingleStatus" role="status">ממתין לבחירת קובץ ועובד.</div></article></section>
     <section class="mpSub" id="mp-hours"><article class="card"><h2>שעות ובונוסים</h2><div class="mpGrid"><label>עובד<select id="mpHoursStaff"></select></label><label>חודש<input id="mpHoursPeriod" type="month" value="${periodNow()}"></label><label>שעות רגילות<input id="mpRegular" type="number" step="0.01" min="0"></label><label>שעות נוספות<input id="mpOvertime" type="number" step="0.01" min="0"></label><label>שבת/חג<input id="mpHoliday" type="number" step="0.01" min="0"></label><label>בונוס ₪<input id="mpBonus" type="number" step="0.01"></label><label style="grid-column:span 2">הערת מנהל<input id="mpHoursNote"></label></div><div class="actions" style="margin-top:9px"><button class="btn primary" id="mpSaveHours">שמירה</button><label class="btn secondary">ייבוא Excel/CSV<input id="mpImportHours" type="file" accept=".xlsx,.xls,.csv,.tsv" style="display:none"></label><button class="btn secondary" id="mpExportHours">ייצוא Excel</button></div><div id="mpImportStatus" class="mpStatus">אין ייבוא פעיל.</div></article><article class="card"><div class="employeeHead"><h2>נתוני החודש</h2><div><input id="mpHoursFilter" type="month" value="${periodNow()}"><button class="btn secondary" id="mpRefreshHours">רענון</button></div></div><div id="mpHoursTable" class="mpTable"></div></article></section>
@@ -34,87 +37,347 @@
     <section class="mpSub" id="mp-policy"><article class="card"><h2>נוהל מסירת תלושים, שעות ובונוסים</h2><p>מסמך פנימי להדפסה או לשמירה כ-PDF. אינו מחליף הנחיות רואה החשבון.</p><div id="mpPolicyText" class="mpStatus" style="background:#fff;border:1px solid var(--line);padding:18px;line-height:1.85"><h2 style="text-align:center">MATOK BASIC</h2><h3 style="text-align:center">נוהל מסירת תלושי שכר, דוחות נוכחות ובונוסים</h3><p><b>אחראי:</b> הנהלת MATOK BASIC</p><p>1. ההנהלה קולטת מסמכים לפי תקופה, בודקת את שיוך כל מסמך לעובד ושומרת אותו באזור הפרטי בלבד.</p><p>2. העובד מקבל גישה לתלוש השכר ולדוח הנוכחות שלו דרך פורטל העובדים המאובטח; אין לשלוח מסמכים של עובדים אחרים.</p><p>3. נתוני שעות ובונוסים בפורטל הם נתוני בקרה. התלוש הרשמי שהופק על ידי הגורם המוסמך הוא המסמך הקובע.</p><p>4. עובד שמזהה פער בשעות, במסמך או בבונוס מגיש בירור דרך המערכת, וההנהלה בודקת ומתעדת את הטיפול.</p><p>5. מסמכים קודמים נשמרים בארכיון האישי לפי חודש ובהרשאות גישה פרטיות.</p><div style="display:flex;justify-content:space-between;gap:24px;margin-top:42px"><span>___________________<br>אישור הנהלה</span><span>___________________<br>אישור קבלה / קריאה</span></div></div><div class="actions" style="margin-top:12px"><button type="button" class="btn primary" id="mpPrintPolicy">הדפסה / שמירה כ-PDF</button></div></article></section>
     <section class="mpSub" id="mp-delivery"><article class="card"><div class="employeeHead"><div><h2>מסירה לעובדים</h2><small>הקובץ נשאר פרטי בפורטל. WhatsApp שולח קישור כניסה בלבד.</small></div><div><input id="mpDeliveryPeriod" type="month" value="${periodNow()}"><button class="btn secondary" id="mpRefreshDelivery">רענון</button><button type="button" class="btn secondary" id="mpExportDelivery">דוח מסירה Excel</button></div></div><div id="mpDelivery" class="mpTable"></div></article></section>`;
     p.querySelectorAll('[data-mp]').forEach(b=>b.onclick=()=>{p.querySelectorAll('[data-mp]').forEach(x=>{x.classList.toggle('primary',x===b);x.classList.toggle('secondary',x!==b)});p.querySelectorAll('.mpSub').forEach(x=>x.classList.toggle('active',x.id==='mp-'+b.dataset.mp));if(b.dataset.mp==='dash')loadDash();if(b.dataset.mp==='hours')loadHoursAdmin();if(b.dataset.mp==='profiles')loadProfiles();if(b.dataset.mp==='delivery')loadDelivery();if(b.dataset.mp==='single')fillSingleStaff()});
-    p.querySelectorAll('[data-mp-doc-choice]').forEach(b=>b.onclick=()=>{const s=document.getElementById('mpPdfType');if(s){s.value=b.dataset.mpDocChoice;syncUploadChoice()}});const typeSelect=document.getElementById('mpPdfType');if(typeSelect)typeSelect.onchange=syncUploadChoice;syncUploadChoice();document.getElementById('mpRefreshDash').onclick=loadDash;document.getElementById('mpAnalyzePdf').onclick=analyzePdf;document.getElementById('mpSavePdf').onclick=savePdf;document.getElementById('mpSaveHours').onclick=saveHours;document.getElementById('mpImportHours').onchange=importHours;document.getElementById('mpExportHours').onclick=exportHours;document.getElementById('mpRefreshHours').onclick=loadHoursAdmin;document.getElementById('mpRefreshDelivery').onclick=loadDelivery;document.getElementById('mpExportDelivery').onclick=exportDelivery;document.getElementById('mpSingleSave').onclick=saveSinglePdf;document.getElementById('mpSinglePeriod').value=periodNow();document.getElementById('mpPrintPolicy').onclick=printPayrollPolicy;
+    p.querySelectorAll('[data-mp-doc-choice]').forEach(b=>b.onclick=()=>{const s=document.getElementById('mpPdfType');if(s){s.value=b.dataset.mpDocChoice;syncUploadChoice()}});const typeSelect=document.getElementById('mpPdfType');if(typeSelect)typeSelect.onchange=syncUploadChoice;syncUploadChoice();document.getElementById('mpRefreshDash').onclick=loadDash;document.getElementById('mpCreateStaff').onclick=()=>openNewPayrollStaff();document.getElementById('mpRefreshStaff').onclick=refreshPayrollStaff;document.getElementById('mpOpenOriginal').onclick=openOriginalPdf;document.getElementById('mpSkipUnmatched').onclick=skipUnmatchedPages;document.getElementById('mpDownloadUnmatched').onclick=downloadUnmatchedPages;document.getElementById('mpCameraFile').onchange=()=>{const el=document.getElementById('mpPdfFile');if(el?.files?.length)el.value=''};document.getElementById('mpPdfFile').onchange=()=>{const el=document.getElementById('mpCameraFile');if(el?.files?.length)el.value=''};watchNewStaffModal();document.getElementById('mpAnalyzePdf').onclick=analyzePdf;document.getElementById('mpSavePdf').onclick=savePdf;document.getElementById('mpSaveHours').onclick=saveHours;document.getElementById('mpImportHours').onchange=importHours;document.getElementById('mpExportHours').onclick=exportHours;document.getElementById('mpRefreshHours').onclick=loadHoursAdmin;document.getElementById('mpRefreshDelivery').onclick=loadDelivery;document.getElementById('mpExportDelivery').onclick=exportDelivery;document.getElementById('mpSingleSave').onclick=saveSinglePdf;document.getElementById('mpSinglePeriod').value=periodNow();document.getElementById('mpPrintPolicy').onclick=printPayrollPolicy;
   }
   async function getStaff(force=false){if(staff.length&&!force)return staff;const {data,error}=await supabaseClient.from('staff').select('id,full_name,phone,username,role_name,is_active').order('is_active',{ascending:false}).order('full_name');if(error)throw error;staff=data||[];return staff}
   async function loadDash(){if(!isAdmin())return;const period=document.getElementById('mpDashPeriod')?.value||periodNow();const {data,error}=await supabaseClient.rpc('admin_payroll_dashboard',{p_period:period});if(error)return;const x=data?.[0]||{};document.getElementById('mpStaff').textContent=x.active_staff??0;document.getElementById('mpPayslips').textContent=x.payslips??0;document.getElementById('mpDelivered').textContent=x.delivered??0;document.getElementById('mpHours').textContent=x.hours_rows??0}
   function setPdfStatus(t,kind=''){const x=document.getElementById('mpPdfStatus');if(x){x.className='mpStatus '+kind;x.textContent=t}}
-  function matchPage(text){
-    const t=norm(text),pageTokens=tokens(t),arr=[];
-    if(!t)return {staffId:'',confidence:'low',score:0,reason:'אין טקסט קריא'};
-    staff.forEach(s=>{
-      const n=norm(s.full_name),u=norm(s.username),parts=tokens(n),first=parts[0]||'',last=parts[parts.length-1]||'';
-      let score=0,reasons=[];
-      if(n&&t.includes(n)){score+=220;reasons.push('שם מלא')}
-      if(u&&t.includes(u)){score+=140;reasons.push('שם משתמש')}
-      const exactParts=parts.filter(p=>p.length>1&&pageTokens.includes(p));
-      if(parts.filter(p=>p.length>1).length>=2&&exactParts.length===parts.filter(p=>p.length>1).length){score+=130;reasons.push('כל חלקי השם')}
-      const firstHit=tokenHit(first,pageTokens);
-      if(firstHit.hit){
-        const sameFirst=staff.filter(x=>tokenHit(tokens(x.full_name)[0]||'',pageTokens).hit&&norm(x.full_name).split(' ')[0]===first).length;
-        score+=sameFirst<=1?90:45;
-        reasons.push(firstHit.fuzzy?'שם פרטי דומה':'שם פרטי')
-      }
-      if(last&&last!==first){
-        if(last.length>1){
-          const lh=tokenHit(last,pageTokens);if(lh.hit){score+=lh.fuzzy?55:85;reasons.push(lh.fuzzy?'שם משפחה דומה':'שם משפחה')}
-        }else if(firstHit.hit&&pageTokens.some(tok=>tok.length>1&&tok.startsWith(last))){score+=55;reasons.push('אות משפחה תואמת')}
-      }
-      if(score)arr.push({id:s.id,score,reasons});
-    });
-    arr.sort((a,b)=>b.score-a.score);
-    if(!arr.length)return {staffId:'',confidence:'low',score:0,reason:'לא נמצא שם תואם'};
-    const top=arr[0],second=arr[1],margin=top.score-(second?.score||0);
-    let confidence='low';
-    if(top.score>=170&&margin>=30)confidence='high';
-    else if(top.score>=85&&margin>=35)confidence='medium';
-    const staffId=confidence==='low'?'':top.id;
-    return {staffId,confidence,score:top.score,reason:top.reasons.join(' + ')||'התאמה',candidates:arr.slice(0,3)};
+
+  function pdfSelectors(){
+    const opts=['<option value="">לבחירה ידנית — לא זוהה</option>'];
+    for(const active of [true,false]){
+      opts.push('<optgroup label="'+(active?'עובדים פעילים':'ארכיון עובדים')+'">');
+      for(const p of staff.filter(x=>!!x.is_active===active)) opts.push('<option value="'+esc(p.id)+'">'+esc(p.full_name)+(active?'':' · לא פעיל')+'</option>');
+      opts.push('</optgroup>');
+    }
+    opts.push('<option value="__skip__">דילוג — לא לשמור עמוד זה</option>');
+    return opts.join('');
   }
-  async function ocrPage(page,pageNo){
+  function recalcPdfControls(){
+    const ready=pdfPages.length>0&&pdfPages.some(x=>!!x.staffId&&!x.skip)&&pdfPages.every(x=>x.staffId||x.skip)&&!pdfSaved;
+    const save=document.getElementById('mpSavePdf');
+    if(save)save.disabled=!ready;
+    const skip=document.getElementById('mpSkipUnmatched');
+    if(skip)skip.disabled=!pdfPages.some(x=>!x.staffId&&!x.skip);
+    const down=document.getElementById('mpDownloadUnmatched');
+    if(down)down.disabled=!pdfBytes||!pdfPages.some(x=>!x.staffId||x.skip);
+    const original=document.getElementById('mpOpenOriginal');
+    if(original)original.disabled=!pdfSourceUrl;
+  }
+  function openOriginalPdf(){
+    if(!pdfSourceUrl)return;
+    const tab=window.open(pdfSourceUrl,'_blank','noopener');
+    if(!tab)toast?.('הדפדפן חסם את פתיחת הקובץ. השתמש בתצוגת העמוד בתוך המערכת.');
+  }
+  function openNewPayrollStaff(pageIndex=-1){
+    if(!isAdmin())return;
+    if(typeof openEmployee!=='function'){toast?.('טופס קליטת עובד אינו זמין כרגע');return}
+    staffModalLaunched=true;
+    if(pageIndex>=0)document.getElementById('mpPdfStatus').dataset.staffPage=String(pageIndex);
+    openEmployee(-1);
+  }
+  async function refreshPayrollStaff(){
+    try{
+      const oldIds=new Set(staff.map(x=>x.id));
+      await getStaff(true);
+      if(typeof fillSingleStaff==='function')await fillSingleStaff();
+      if(pdfPages.length)renderPdfReview();
+      recalcPdfControls();
+      const fresh=staff.filter(x=>!oldIds.has(x.id));
+      setPdfStatus(fresh.length?'רשימת העובדים עודכנה. העובדים החדשים זמינים לבחירה ידנית; לא בוצע שיוך אוטומטי.':'רשימת העובדים נטענה מחדש.','good');
+    }catch(e){console.error('refresh payroll staff',e);toast?.('לא ניתן לרענן את רשימת העובדים')}
+  }
+  function watchNewStaffModal(){
+    const m=document.getElementById('employeeModal');
+    if(!m||m.dataset.mpWatched==='1')return;
+    m.dataset.mpWatched='1';
+    let seenOpen=false;
+    new MutationObserver(()=>{
+      if(!staffModalLaunched)return;
+      if(m.classList.contains('show')){seenOpen=true;return}
+      if(seenOpen){staffModalLaunched=false;seenOpen=false;setTimeout(refreshPayrollStaff,220)}
+    }).observe(m,{attributes:true,attributeFilter:['class']});
+  }
+  async function cameraImagesToPdf(files){
+    await ensurePdf();
+    const doc=await PDFLib.PDFDocument.create();
+    if(files.length>30)throw new Error('אפשר לקלוט עד 30 תמונות בכל פעם');
+    for(const file of files){
+      if(!file.type.startsWith('image/'))throw new Error('יש לבחור תמונות בלבד');
+      const url=URL.createObjectURL(file),image=new Image();
+      try{
+        await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('התמונה לא נקראה'));image.src=url});
+        const ratio=Math.min(1,2400/Math.max(image.naturalWidth,image.naturalHeight));
+        const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(image.naturalHeight*ratio));
+        const ctx=canvas.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+        const png=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('שמירת התמונה נכשלה')),'image/png'));
+        const img=await doc.embedPng(await png.arrayBuffer());
+        const landscape=img.width>img.height,[w,h]=landscape?[842,595]:[595,842],margin=20,scale=Math.min((w-margin*2)/img.width,(h-margin*2)/img.height);
+        const p=doc.addPage([w,h]);p.drawImage(img,{x:(w-img.width*scale)/2,y:(h-img.height*scale)/2,width:img.width*scale,height:img.height*scale});
+        canvas.width=0;canvas.height=0;
+      } finally {URL.revokeObjectURL(url)}
+    }
+    return await doc.save();
+  }
+  async function skipUnmatchedPages(){
+    const missing=pdfPages.filter(x=>!x.staffId&&!x.skip);
+    if(!missing.length)return;
+    if(!confirm('לדלג על '+missing.length+' עמודים שלא זוהו? הם לא יישמרו לאף עובד. תוכל להוריד אותם לבדיקה נוספת.'))return;
+    for(const p of missing)p.skip=true;
+    renderPdfReview();recalcPdfControls();setPdfStatus('העמודים שלא זוהו הוחרגו מהקליטה. רק עמודים ששויכו יישמרו.','good');
+  }
+  async function downloadUnmatchedPages(){
+    if(!pdfBytes)return;
+    const missing=pdfPages.filter(x=>x.skip||!x.staffId).map(x=>x.page-1);
+    if(!missing.length)return;
+    try{
+      await ensurePdf();
+      const src=await PDFLib.PDFDocument.load(pdfBytes),out=await PDFLib.PDFDocument.create();
+      (await out.copyPages(src,missing)).forEach(p=>out.addPage(p));
+      const blob=new Blob([await out.save()],{type:'application/pdf'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download='MATOK_עמודים_לבדיקה_'+(document.getElementById('mpPdfPeriod')?.value||'')+'.pdf';document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),30000);
+    }catch(e){console.error(e);toast?.('יצוא העמודים שלא נקלטו נכשל')}
+  }
+  function ensurePdfReviewModal(){
+    let m=document.getElementById('mpPageReviewModal');
+    if(m)return m;
+    m=document.createElement('div');m.id='mpPageReviewModal';m.className='modal mpReviewModal';
+    m.innerHTML='<section><button type="button" class="close" id="mpReviewClose" aria-label="סגירה">×</button><h2 id="mpReviewTitle">בדיקת מסמך</h2><small id="mpReviewDescription">הקובץ המקורי מוצג לצורך בדיקה בלבד.</small><div class="mpReviewCanvasWrap"><canvas id="mpReviewCanvas"></canvas></div><label style="display:grid;gap:6px;font-weight:800">שיוך העמוד לעובד<select id="mpReviewStaff"></select></label><div class="mpReviewActions"><button class="btn secondary" id="mpReviewOcr">סריקה חוזרת בחדות גבוהה</button><button class="btn secondary" id="mpReviewNewStaff">+ עובד חדש</button><button class="btn secondary" id="mpReviewOriginal">הקובץ המקורי</button></div><div class="mpReviewActions"><button class="btn secondary" id="mpReviewPrev">עמוד קודם</button><button class="btn primary" id="mpReviewApply">אישור השיוך</button><button class="btn secondary" id="mpReviewNext">עמוד הבא</button></div><div class="mpStatus" id="mpReviewStatus" role="status"></div></section>';
+    document.body.appendChild(m);
+    document.getElementById('mpReviewClose').onclick=()=>closeModal?.('mpPageReviewModal');
+    document.getElementById('mpReviewOriginal').onclick=openOriginalPdf;
+    document.getElementById('mpReviewNewStaff').onclick=()=>openNewPayrollStaff(activeReviewPage-1);
+    document.getElementById('mpReviewApply').onclick=()=>{
+      const r=pdfPages[activeReviewPage-1],v=document.getElementById('mpReviewStaff').value;
+      if(!r)return;
+      r.skip=v==='__skip__';r.staffId=r.skip?'':v;r.manual=!!v;r.confidence=v==='__skip__'?'low':v?'high':'low';r.reason=r.skip?'המנהל החליט לדלג':v?'שיוך שאושר ידנית':'ממתין להתאמה';
+      renderPdfReview();recalcPdfControls();
+      document.getElementById('mpReviewStatus').textContent=r.skip?'העמוד סומן לדילוג ואינו נשמר.':r.staffId?'השיוך נשמר למסך הבדיקה. יש ללחוץ על פיצול ושמירה להעלאה בפועל.':'אין עדיין התאמה.';
+    };
+    document.getElementById('mpReviewPrev').onclick=()=>openReviewPage(activeReviewPage-1);
+    document.getElementById('mpReviewNext').onclick=()=>openReviewPage(activeReviewPage+1);
+    document.getElementById('mpReviewOcr').onclick=async()=>{
+      if(!pdfDocument)return;
+      const btn=document.getElementById('mpReviewOcr');btn.disabled=true;
+      const status=document.getElementById('mpReviewStatus');
+      try{
+        const page=await pdfDocument.getPage(activeReviewPage),ocr=await ocrPage(page,activeReviewPage,true),match=matchPage(ocr);
+        const row=pdfPages[activeReviewPage-1];
+        row.source='ocr-high';row.textPreview=norm(ocr).slice(0,160);row.candidates=match.candidates||[];
+        status.textContent='סריקה חוזרת הושלמה: '+(match.reason||'אין התאמה').concat('. בדוק את העמוד ובחר עובד ידנית.');
+        renderPdfReview();
+      }catch(e){console.error(e);status.textContent='הסריקה החוזרת נכשלה. ניתן לבחור עובד ידנית לפי התצוגה.'}
+      finally{btn.disabled=false}
+    };
+    return m;
+  }
+  async function openReviewPage(pageNo){
+    if(!pdfBytes||!pdfPages.length||pageNo<1||pageNo>pdfPages.length)return;
+    const m=ensurePdfReviewModal();activeReviewPage=pageNo;
+    document.getElementById('mpReviewTitle').textContent='בדיקת עמוד '+pageNo+' מתוך '+pdfPages.length;
+    document.getElementById('mpReviewPrev').disabled=pageNo===1;
+    document.getElementById('mpReviewNext').disabled=pageNo===pdfPages.length;
+    const r=pdfPages[pageNo-1],sel=document.getElementById('mpReviewStaff');
+    sel.innerHTML=pdfSelectors();sel.value=r.skip?'__skip__':r.staffId||'';
+    document.getElementById('mpReviewDescription').textContent=r.reason||'תצוגה מקורית, ללא שינוי בקובץ.';
+    document.getElementById('mpReviewStatus').textContent='בדוק את השם בתלוש או בדוח לפני אישור.';
+    openModal?.('mpPageReviewModal');
+    try{
+      await ensurePdf();
+      if(!pdfDocument)pdfDocument=await pdfjsLib.getDocument({data:pdfBytes.slice(0)}).promise;
+      const page=await pdfDocument.getPage(pageNo),viewport=page.getViewport({scale:2}),canvas=document.getElementById('mpReviewCanvas');
+      const ctx=canvas.getContext('2d');canvas.width=Math.round(viewport.width);canvas.height=Math.round(viewport.height);
+      await page.render({canvasContext:ctx,viewport}).promise;
+    }catch(e){console.error(e);document.getElementById('mpReviewStatus').textContent='לא ניתן להציג את העמוד. השתמש בקובץ המקורי.'}
+  }
+
+
+  function matchPage(text){
+    const pageTokens=tokens(text),arr=[];
+    if(!pageTokens.length)return {staffId:'',confidence:'low',reason:'אין טקסט קריא',candidates:[]};
+    const locs=(value,prefix=false)=>pageTokens.map((w,i)=>(prefix?w.length>=3&&w.startsWith(value):w===value)?i:-1).filter(i=>i>=0);
+    for(const s of staff){
+      const parts=tokens(s.full_name),first=parts[0]||'',last=parts[parts.length-1]||'';
+      if(!first)continue;
+      const firstExact=locs(first),firstApprox=firstExact.length?[]:pageTokens.map((word,i)=>first.length>=4&&Math.abs(word.length-first.length)<=1&&levenshtein(first,word)===1?i:-1).filter(i=>i>=0);
+      const fi=firstExact.length?firstExact:firstApprox;
+      const u=tokens(s.username||'');
+      let score=0,reason=[];
+      const contiguous=parts.length>=2&&parts.every(p=>p.length>=2)&&pageTokens.some((_,i)=>parts.every((p,j)=>pageTokens[i+j]===p));
+      if(contiguous){score=290;reason.push('שם מלא רציף')}
+      if(u.length===1&&u[0].length>=5&&pageTokens.includes(u[0])){score+=195;reason.push('שם משתמש מדויק')}
+      if(fi.length){
+        score+=firstExact.length?47:15;
+        reason.push(firstExact.length?'שם פרטי מדויק':'שם פרטי דומה');
+        if(parts.length>=2){
+          const lastExact=last.length>=2?locs(last):[],lastInitial=last.length===1?locs(last,true):[];
+          const li=lastExact.length?lastExact:lastInitial;
+          const nearest=li.length?Math.min(...fi.flatMap(a=>li.map(b=>Math.abs(a-b)))):99;
+          if(nearest<=8){
+            if(lastExact.length){score+=nearest<=3?140:105;reason.push('שם משפחה סמוך')}
+            else if(nearest<=3){score+=78;reason.push('שם משפחה מקוצר סמוך')}
+          }
+        }
+      }
+      if(score)arr.push({id:s.id,score,reasons:reason});
+    }
+    arr.sort((a,b)=>b.score-a.score);
+    if(!arr.length)return {staffId:'',confidence:'low',reason:'לא נמצא שם תואם',candidates:[]};
+    const top=arr[0],second=arr[1],margin=top.score-(second?.score||0);
+    const fullProof=top.reasons.includes('שם מלא רציף')||top.reasons.includes('שם משתמש מדויק')||top.reasons.includes('שם משפחה סמוך');
+    const confidence=fullProof&&top.score>=180&&margin>=55?'high':top.score>=115&&margin>=42?'medium':'low';
+    // A shortened surname or a fuzzy OCR match is only a suggestion. Never
+    // auto-assign a confidential document on a first-name-only guess.
+    const staffId=confidence==='high'?top.id:'';
+    const candidates=arr.slice(0,3).map(x=>({id:x.id,score:x.score}));
+    const who=staff.find(x=>x.id===top.id);
+    return {staffId,suggestedId:top.id,confidence,score:top.score,reason:(staffId?'זוהה: ':'הצעה לבדיקה: ')+(who?.full_name||'')+' · '+top.reasons.join(' + '),candidates};
+  }
+  async function ocrPage(page,pageNo,high=false){
     await ensureOcr();
-    const viewport=page.getViewport({scale:1.7}),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const viewport=page.getViewport({scale:high?2.45:1.85}),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
     canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
     await page.render({canvasContext:ctx,viewport}).promise;
-    setPdfStatus(`עמוד ${pageNo}: מפעיל OCR לזיהוי סריקה…`);
-    const result=await Tesseract.recognize(canvas,'heb+eng',{logger:m=>{if(m.status==='recognizing text'&&Number.isFinite(m.progress))setPdfStatus(`עמוד ${pageNo}: OCR ${Math.round(m.progress*100)}%`)}});
-    return result?.data?.text||'';
-  }
-  async function analyzePdf(){
-    const file=document.getElementById('mpPdfFile').files?.[0],period=document.getElementById('mpPdfPeriod').value,useOcr=document.getElementById('mpUseOcr')?.checked!==false;
-    if(!file){setPdfStatus('יש לבחור קובץ PDF.','bad');return}
-    if(!period){setPdfStatus('יש לבחור חודש.','bad');return}
-    setPdfStatus('קורא את ה-PDF ומזהה עובדים…');document.getElementById('mpSavePdf').disabled=true;
+    setPdfStatus('עמוד '+pageNo+': '+(high?'סריקה חוזרת בחדות גבוהה':'OCR לזיהוי מסמך סרוק')+'…');
     try{
-      await ensurePdf();await getStaff(true);pdfBytes=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:pdfBytes.slice(0)}).promise;pdfPages=[];
-      let ocrCount=0;
-      for(let n=1;n<=pdf.numPages;n++){
-        const page=await pdf.getPage(n),tc=await page.getTextContent(),raw=tc.items.map(i=>i.str||'').join(' ');
-        let text=raw,match=matchPage(text),source='text';
+      if(!ocrWorker && typeof Tesseract.createWorker==='function')ocrWorker=await Tesseract.createWorker('heb+eng',1,{logger:m=>{
+        if(m.status==='recognizing text'&&Number.isFinite(m.progress))setPdfStatus('עמוד '+pageNo+': OCR '+Math.round(m.progress*100)+'%');
+      }});
+      const result=ocrWorker?await ocrWorker.recognize(canvas):await Tesseract.recognize(canvas,'heb+eng');
+      return result?.data?.text||'';
+    }finally{canvas.width=0;canvas.height=0}
+  }
+
+  async function analyzePdf(){
+    const file=document.getElementById('mpPdfFile').files?.[0];
+    const photos=[...(document.getElementById('mpCameraFile')?.files||[])];
+    const period=document.getElementById('mpPdfPeriod').value;
+    const useOcr=document.getElementById('mpUseOcr')?.checked!==false;
+    if(!file&&!photos.length){setPdfStatus('בחר קובץ PDF או תמונות של מסמכים.','bad');return}
+    if(file&&photos.length){setPdfStatus('בחר PDF או תמונות, לא את שניהם.','bad');return}
+    if(!period){setPdfStatus('יש לבחור חודש.','bad');return}
+    if(file&&file.size>60*1024*1024){setPdfStatus('קובץ גדול מדי לעיבוד בטלפון. ניתן לפצל לקבצים קטנים יותר.','bad');return}
+    pdfSaved=false;savedStaffIds.clear();
+    setPdfStatus('קורא את המסמכים ומזהה עובדים…');
+    document.getElementById('mpSavePdf').disabled=true;
+    try{
+      await ensurePdf();await getStaff(true);
+      if(pdfDocument){try{await pdfDocument.destroy()}catch(_){}pdfDocument=null}
+      if(pdfSourceUrl){URL.revokeObjectURL(pdfSourceUrl);pdfSourceUrl=null}
+      pdfBytes=file?await file.arrayBuffer():await cameraImagesToPdf(photos);
+      pdfSourceUrl=URL.createObjectURL(new Blob([pdfBytes],{type:'application/pdf'}));
+      pdfDocument=await pdfjsLib.getDocument({data:pdfBytes.slice(0)}).promise;
+      pdfPages=[];recalcPdfControls();
+      let ocrCount=0,ocrFailures=0;
+      if(pdfDocument.numPages>90)throw new Error('יש לפצל את הקובץ לקבוצות של עד 90 עמודים');
+      for(let n=1;n<=pdfDocument.numPages;n++){
+        setPdfStatus('מנתח עמוד '+n+' מתוך '+pdfDocument.numPages+'…');
+        const page=await pdfDocument.getPage(n),tc=await page.getTextContent();
+        const raw=tc.items.map(x=>(x.str||'')+(x.hasEOL?'\n':' ')).join('');
+        let text=raw,match=matchPage(raw),source='PDF';
         const readable=norm(raw).replace(/\s/g,'').length;
-        if(useOcr&&(readable<35||match.confidence==='low')){
+        if(useOcr&&(readable<40||match.confidence!=='high')){
           try{
             const ocr=await ocrPage(page,n);
-            if(norm(ocr).length>norm(text).length||match.confidence==='low'){
-              const ocrMatch=matchPage(ocr);
-              if(ocrMatch.confidence!=='low'||match.confidence==='low'){text=ocr;match=ocrMatch;source='ocr';ocrCount++}
+            const combined=raw+'\n'+ocr;
+            const ocrMatch=matchPage(combined);
+            const strength={low:0,medium:1,high:2};
+            if((strength[ocrMatch.confidence]||0)>(strength[match.confidence]||0)||(ocrMatch.confidence===match.confidence&&ocrMatch.score>match.score+20)){
+              text=combined;match=ocrMatch;source='OCR+PDF';
             }
-          }catch(ocrError){console.warn('OCR failed on page',n,ocrError)}
+            ocrCount++;
+          }catch(ocrError){ocrFailures++;console.warn('OCR failed on page',n,ocrError)}
         }
-        pdfPages.push({page:n,staffId:match.staffId||'',confidence:match.confidence||'low',reason:match.reason||'',source,textPreview:norm(text).slice(0,90)});
+        pdfPages.push({page:n,staffId:match.staffId||'',suggestedId:match.suggestedId||'',candidates:match.candidates||[],confidence:match.confidence||'low',reason:match.reason||'',source,textPreview:norm(text).slice(0,160),skip:false,manual:false});
       }
       renderPdfReview();
-      const matched=pdfPages.filter(x=>x.staffId).length,manual=pdfPages.length-matched;
-      document.getElementById('mpSavePdf').disabled=manual>0;
-      setPdfStatus(`נותחו ${pdfPages.length} עמודים · זוהו ${matched} · OCR הופעל ב-${ocrCount}${manual?` · ${manual} דורשים שיוך ידני`:''}.`,manual?'':'good');
-    }catch(e){console.error(e);setPdfStatus('לא ניתן לנתח את הקובץ. נסה שוב; אם עמוד לא מזוהה, ניתן לבחור את העובד ידנית לפני השמירה.','bad')}
+      recalcPdfControls();
+      const matched=pdfPages.filter(x=>!!x.staffId).length,manual=pdfPages.length-matched;
+      setPdfStatus('נותחו '+pdfPages.length+' עמודים · '+matched+' זוהו בוודאות · '+manual+' לבדיקה ידנית · '+ocrCount+' נסרקו ב-OCR'+(ocrFailures?' · '+ocrFailures+' עמודים ללא OCR, יש לבדוק ידנית':'')+'.',manual?'':'good');
+    }catch(e){
+      console.error('analyzePdf',e);
+      setPdfStatus('לא ניתן לנתח את הקובץ: '+(e?.message||'שגיאה')+'. אפשר להעלות קובץ קטן יותר או לנסות שוב.','bad');
+      recalcPdfControls();
+    }
   }
+
   function renderPdfReview(){
-    const box=document.getElementById('mpPdfReview'),opts='<option value="">לא זוהה — לבחור ידנית</option>'+['פעילים','לא פעילים'].map((label,i)=>`<optgroup label="${label}">${staff.filter(s=>Boolean(s.is_active)===(i===0)).map(s=>`<option value="${s.id}">${esc(s.full_name)}${s.is_active?'':' · לא פעיל'}</option>`).join('')}</optgroup>`).join('');
-    box.innerHTML=pdfPages.map((r,i)=>`<div class="mpPdfRow"><div><b>עמוד ${r.page}</b><span class="mpConfidence ${r.confidence}">${r.confidence==='high'?'זיהוי גבוה':r.confidence==='medium'?'זיהוי בינוני':'בדיקה ידנית'}</span></div><div><small>${esc(r.reason||'לא זוהה')}${r.source==='ocr'?' · OCR':''}</small><div class="mpPreview">${esc(r.textPreview||'')}</div></div><select data-mp-page="${i}">${opts}</select></div>`).join('');
-    box.querySelectorAll('select').forEach(sel=>{const i=Number(sel.dataset.mpPage);sel.value=pdfPages[i].staffId||'';sel.onchange=()=>{pdfPages[i].staffId=sel.value;pdfPages[i].confidence=sel.value?'high':'low';pdfPages[i].reason=sel.value?'שויך ידנית על ידי מנהל':'לא שויך';renderPdfReview();document.getElementById('mpSavePdf').disabled=pdfPages.some(x=>!x.staffId);if(!pdfPages.some(x=>!x.staffId))setPdfStatus('כל העמודים משויכים. ניתן לשמור לעובדים.','good')}})
+    const box=document.getElementById('mpPdfReview');
+    if(!box)return;
+    const opts=pdfSelectors();
+    const matched=pdfPages.filter(x=>x.staffId&&!x.skip).length;
+    const skipped=pdfPages.filter(x=>x.skip).length;
+    const pending=pdfPages.length-matched-skipped;
+    const rows=pdfPages.map((r,i)=>{
+      const suggestions=(r.candidates||[]).slice(0,3).map(x=>staff.find(s=>s.id===x.id)?.full_name).filter(Boolean).join(' · ');
+      const label=r.skip?'דולג':r.manual?'אושר ידנית':r.confidence==='high'?'זוהה בוודאות':r.confidence==='medium'?'הצעה לבדיקה':'בדיקה ידנית';
+      const cls=r.staffId?'high':r.skip?'medium':'low';
+      const disabled=pdfSaved?' disabled':'';
+      return '<div class="mpPdfRow'+(r.skip?' isSkipped':'')+'" data-pdf-row="'+i+'">'
+        +'<div><b>עמוד '+r.page+'</b><span class="mpConfidence '+cls+'">'+label+'</span></div>'
+        +'<div><small>'+esc(r.reason||'לא זוהה')+(r.source?.includes('OCR')?' · OCR':'')+'</small>'
+        +'<div class="mpPreview">'+esc(r.textPreview||'אין טקסט קריא — יש לפתוח את העמוד')+'</div>'
+        +(suggestions&&!r.staffId?'<small style="color:#386d66">התאמות אפשריות: '+esc(suggestions)+'</small>':'')
+        +'<div class="mpRowTools"><button type="button" class="btn secondary" data-mp-preview="'+r.page+'">פתח עמוד</button><button type="button" class="btn secondary" data-mp-new="'+i+'">+ עובד חדש</button></div></div>'
+        +'<label style="display:grid;gap:5px">התאמה לעובד<select aria-label="התאמה לעובד לעמוד '+r.page+'" data-mp-page="'+i+'"'+disabled+'>'+opts+'</select></label></div>';
+    }).join('');
+    box.innerHTML=pdfPages.length?'<div class="mpReviewIntro" style="margin:12px 0;padding:13px;background:#eef9f6;border:1px solid #b4dbd4;border-radius:13px"><strong>בדיקת ההתאמה לפני שמירה</strong><div class="mpPdfSummary">'+matched+' משויכים · '+pending+' לבדיקה · '+skipped+' דולגו</div><small>פתח עמוד כדי לראות את המסמך, ובחר עובד מתוך הרשימה. אפשר להוסיף עובד חסר בלי לאבד את הקליטה.</small></div>'+rows:'';
+    box.querySelectorAll('[data-mp-page]').forEach(sel=>{
+      const i=Number(sel.dataset.mpPage),r=pdfPages[i];
+      sel.value=r.skip?'__skip__':r.staffId||'';
+      sel.onchange=()=>{
+        const v=sel.value;
+        r.skip=v==='__skip__';r.staffId=r.skip?'':v;r.manual=!!v;r.confidence=r.staffId?'high':'low';
+        r.reason=r.skip?'העמוד הוחרג על ידי המנהל':r.staffId?'שויך ידנית על ידי המנהל':'ממתין לבחירה';
+        renderPdfReview();recalcPdfControls();
+      };
+    });
+    box.querySelectorAll('[data-mp-preview]').forEach(b=>b.onclick=()=>openReviewPage(Number(b.dataset.mpPreview)));
+    box.querySelectorAll('[data-mp-new]').forEach(b=>b.onclick=()=>openNewPayrollStaff(Number(b.dataset.mpNew)));
+    recalcPdfControls();
   }
-  async function savePdf(){if(!pdfBytes||!pdfPages.length)return;const missing=pdfPages.filter(x=>!x.staffId);if(missing.length){setPdfStatus(`יש ${missing.length} עמודים שלא שויכו לעובד.`, 'bad');return}const type=document.getElementById('mpPdfType').value,period=document.getElementById('mpPdfPeriod').value,btn=document.getElementById('mpSavePdf');btn.disabled=true;btn.textContent='שומר…';try{await ensurePdf();const src=await PDFLib.PDFDocument.load(pdfBytes),grouped=new Map();pdfPages.forEach(r=>{if(!grouped.has(r.staffId))grouped.set(r.staffId,[]);grouped.get(r.staffId).push(r.page-1)});let done=0;for(const [staffId,pages] of grouped){const out=await PDFLib.PDFDocument.create(),copies=await out.copyPages(src,pages);copies.forEach(p=>out.addPage(p));const bytes=await out.save(),path=`${staffId}/${safe(period)}/${type}-${crypto.randomUUID()}.pdf`;const {error:up}=await supabaseClient.storage.from('employee-documents').upload(path,new Blob([bytes],{type:'application/pdf'}),{contentType:'application/pdf'});if(up)throw up;const fname=`${type==='payslip'?'תלוש שכר':'דוח שעות'} - ${period}.pdf`;const {error:reg}=await supabaseClient.rpc('admin_register_employee_document',{p_staff_id:staffId,p_doc_type:type,p_period_label:period,p_storage_path:path,p_original_file_name:fname,p_page_from:Math.min(...pages)+1,p_page_to:Math.max(...pages)+1,p_retention_days:3650});if(reg){await supabaseClient.storage.from('employee-documents').remove([path]);throw reg}done++}setPdfStatus(`נשמרו ${done} מסמכים פרטיים לעובדים.`, 'good');pdfBytes=null;pdfPages=[];document.getElementById('mpPdfFile').value='';document.getElementById('mpPdfReview').innerHTML='';await loadDash()}catch(e){console.error(e);setPdfStatus('השמירה נכשלה: '+(e?.message||'שגיאה'), 'bad')}finally{btn.disabled=false;btn.textContent='פירוק ושמירה לעובדים'}}
+  async function savePdf(){
+    if(!pdfBytes||!pdfPages.length||pdfSaved)return;
+    const pending=pdfPages.filter(x=>!x.staffId&&!x.skip);
+    if(pending.length){setPdfStatus('יש עוד '+pending.length+' עמודים לבדיקה. התאם ידנית או בחר דילוג לפני השמירה.','bad');return}
+    const included=pdfPages.filter(x=>x.staffId&&!x.skip);
+    if(!included.length){setPdfStatus('אין עמודים משויכים לשמירה.','bad');return}
+    const type=document.getElementById('mpPdfType').value;
+    const period=document.getElementById('mpPdfPeriod').value;
+    const btn=document.getElementById('mpSavePdf');
+    btn.disabled=true;btn.textContent='שומר…';
+    try{
+      await ensurePdf();
+      const src=await PDFLib.PDFDocument.load(pdfBytes),grouped=new Map();
+      included.forEach(r=>{if(!grouped.has(r.staffId))grouped.set(r.staffId,[]);grouped.get(r.staffId).push(r.page-1)});
+      let done=0;
+      for(const [staffId,pages] of grouped){
+        if(savedStaffIds.has(staffId))continue;
+        const out=await PDFLib.PDFDocument.create(),copies=await out.copyPages(src,pages);
+        copies.forEach(p=>out.addPage(p));
+        const bytes=await out.save();
+        const path=staffId+'/'+safe(period)+'/'+type+'-'+crypto.randomUUID()+'.pdf';
+        setPdfStatus('שומר מסמך '+(done+savedStaffIds.size+1)+'…');
+        const {error:up}=await supabaseClient.storage.from('employee-documents').upload(path,new Blob([bytes],{type:'application/pdf'}),{contentType:'application/pdf',upsert:false});
+        if(up)throw up;
+        const fname=(type==='payslip'?'תלוש שכר':'דוח שעות')+' - '+period+'.pdf';
+        const {error:reg}=await supabaseClient.rpc('admin_register_employee_document',{p_staff_id:staffId,p_doc_type:type,p_period_label:period,p_storage_path:path,p_original_file_name:fname,p_page_from:Math.min(...pages)+1,p_page_to:Math.max(...pages)+1,p_retention_days:3650});
+        if(reg){await supabaseClient.storage.from('employee-documents').remove([path]);throw reg}
+        savedStaffIds.add(staffId);done++;
+      }
+      pdfSaved=true;renderPdfReview();
+      const excluded=pdfPages.filter(x=>x.skip).length;
+      setPdfStatus('הקליטה הסתיימה: '+grouped.size+' מסמכים פרטיים נשמרו. '+(excluded?'ללא '+excluded+' עמודים שלא שויכו; אפשר להוריד אותם לבדיקה נוספת.':'כל העמודים שויכו.')+' מסמכים נשמרו רק בחשבונות העובדים שנבחרו.','good');
+      try{await loadDash()}catch(e){console.warn('dashboard refresh',e)}
+    }catch(e){
+      console.error('savePdf',e);
+      setPdfStatus('השמירה נעצרה: '+(e?.message||'שגיאה')+'. מסמכים שכבר נשמרו לא יועלו שוב בניסיון חוזר.','bad');
+    }finally{
+      btn.textContent='פירוק ושמירת העמודים המשויכים';
+      recalcPdfControls();
+    }
+  }
   async function loadProfiles(){
     const box=document.getElementById('mpProfiles');if(!box)return;
     const {data,error}=await supabaseClient.rpc('admin_list_payroll_profiles_v2');

@@ -21,6 +21,7 @@ const syntaxFiles=[
   'tests/smoke.mjs',
   'tests/schedule-regression.mjs',
   'tests/requirements-17.mjs',
+  'tests/payroll-intake-ux.mjs',
   'tests/inactive-payroll.mjs'
 ];
 
@@ -40,5 +41,6 @@ run(['tests/smoke.mjs'],'smoke checks');
 run(['tests/schedule-regression.mjs'],'schedule regression checks');
 run(['tests/requirements-17.mjs'],'17 requirement checks');
 run(['tests/inactive-payroll.mjs'],'inactive employee and payroll regression checks');
+run(['tests/payroll-intake-ux.mjs'],'payroll intake OCR, manual review and privacy regression checks');
 run(['tests/attendance-compact.mjs'],'attendance and compact portal checks');
 console.log('MATOK production verification passed');

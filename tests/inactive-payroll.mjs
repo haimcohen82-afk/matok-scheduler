@@ -14,7 +14,7 @@ has(shell,'openInactiveEmployee','inactive employee cards must remain editable')
 has(shell,"is_active:document.getElementById('employeeIsActive').value==='active'",'editing must preserve explicit active status');
 has(shell,'reactivateEmployee','manager must explicitly be able to reactivate');
 has(payroll,".select('id,full_name,phone,username,role_name,is_active')",'matching must fetch all employees');
-has(payroll,"await getStaff(true);pdfBytes=",'a new PDF should refresh the employee directory');
+has(payroll,"await ensurePdf();await getStaff(true);",'a new PDF should refresh the employee directory');
 has(payroll,'לא פעילים','manual PDF assignment must include inactive employees');
 has(payroll,"admin_list_payroll_profiles_v2",'payroll profiles must include status');
 has(payroll,"await getStaff(true);",'payroll import must refresh staff before match');
