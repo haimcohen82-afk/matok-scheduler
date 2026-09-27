@@ -54,7 +54,7 @@
     return opts.join('');
   }
   function recalcPdfControls(){
-    const ready=pdfPages.length>0&&pdfPages.some(x=>!!x.staffId&&!x.skip)&&pdfPages.every(x=>x.staffId||x.skip)&&!pdfSaved;
+    const ready=pdfPages.length>0&&pdfPages.some(x=>!!x.staffId&&!x.skip&&!x.sharedRisk)&&pdfPages.every(x=>(x.staffId&&!x.sharedRisk)||x.skip)&&!pdfSaved;
     const save=document.getElementById('mpSavePdf');
     if(save)save.disabled=!ready;
     const skip=document.getElementById('mpSkipUnmatched');
@@ -130,7 +130,7 @@
   }
   async function downloadUnmatchedPages(){
     if(!pdfBytes)return;
-    const missing=pdfPages.filter(x=>x.skip||!x.staffId).map(x=>x.page-1);
+    const missing=pdfPages.filter(x=>x.skip||!x.staffId||x.sharedRisk).map(x=>x.page-1);
     if(!missing.length)return;
     try{
       await ensurePdf();
@@ -153,6 +153,7 @@
     document.getElementById('mpReviewApply').onclick=()=>{
       const r=pdfPages[activeReviewPage-1],v=document.getElementById('mpReviewStaff').value;
       if(!r)return;
+      if(r.sharedRisk&&v!=='__skip__'){document.getElementById('mpReviewStatus').textContent='עמוד משותף לכמה עובדים אינו ניתן לשיוך. יש לדלג ולפצל את מסמכי המקור.';return;}
       r.skip=v==='__skip__';r.staffId=r.skip?'':v;r.manual=!!v;r.confidence=v==='__skip__'?'low':v?'high':'low';r.reason=r.skip?'המנהל החליט לדלג':v?'שיוך שאושר ידנית':'ממתין להתאמה';
       renderPdfReview();recalcPdfControls();
       document.getElementById('mpReviewStatus').textContent=r.skip?'העמוד סומן לדילוג ואינו נשמר.':r.staffId?'השיוך נשמר למסך הבדיקה. יש ללחוץ על פיצול ושמירה להעלאה בפועל.':'אין עדיין התאמה.';
@@ -167,7 +168,8 @@
         const page=await pdfDocument.getPage(activeReviewPage),ocr=await ocrPage(page,activeReviewPage,true),match=matchPage(ocr);
         const row=pdfPages[activeReviewPage-1];
         const shared=multipleStaffOnPage(ocr);if(shared.length>1){row.sharedRisk=true;row.staffId='';row.skip=false;match.reason='מסמך משותף ('+shared.join(', ')+') — יש להפריד לפני שיוך.'}
-        row.source='ocr-high';row.textPreview=norm(ocr).slice(0,160);row.candidates=match.candidates||[];
+        row.source='ocr-high';row.textPreview=norm(ocr).slice(0,160);row.candidates=row.sharedRisk?[]:match.candidates||[];
+        if(row.sharedRisk){const select=document.getElementById('mpReviewStaff');select.innerHTML='<option value="">נמצא מסמך משותף — לא ניתן לשייך</option><option value="__skip__">דלג על העמוד המשותף</option>';select.value=''}
         status.textContent='סריקה חוזרת הושלמה: '+(match.reason||'אין התאמה').concat('. בדוק את העמוד ובחר עובד ידנית.');
         renderPdfReview();
       }catch(e){console.error(e);status.textContent='הסריקה החוזרת נכשלה. ניתן לבחור עובד ידנית לפי התצוגה.'}
@@ -318,7 +320,7 @@
     const box=document.getElementById('mpPdfReview');
     if(!box)return;
     const opts=pdfSelectors();
-    const matched=pdfPages.filter(x=>x.staffId&&!x.skip).length;
+    const matched=pdfPages.filter(x=>x.staffId&&!x.skip&&!x.sharedRisk).length;
     const skipped=pdfPages.filter(x=>x.skip).length;
     const pending=pdfPages.length-matched-skipped;
     const rows=pdfPages.map((r,i)=>{
@@ -353,9 +355,9 @@
   }
   async function savePdf(){
     if(!pdfBytes||!pdfPages.length||pdfSaved)return;
-    const pending=pdfPages.filter(x=>!x.staffId&&!x.skip);
+    const pending=pdfPages.filter(x=>(!x.staffId||x.sharedRisk)&&!x.skip);
     if(pending.length){setPdfStatus('יש עוד '+pending.length+' עמודים לבדיקה. התאם ידנית או בחר דילוג לפני השמירה.','bad');return}
-    const included=pdfPages.filter(x=>x.staffId&&!x.skip);
+    const included=pdfPages.filter(x=>x.staffId&&!x.skip&&!x.sharedRisk);
     if(!included.length){setPdfStatus('אין עמודים משויכים לשמירה.','bad');return}
     const type=document.getElementById('mpPdfType').value;
     const period=document.getElementById('mpPdfPeriod').value;
