@@ -1,0 +1,30 @@
+name: MATOK MCP read-only TypeScript check
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'meta-connector/supabase/matok-meta-mcp-v2-candidate.ts'
+      - '.github/workflows/matok-mcp-typecheck.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mcp-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type check MCP candidate
+        run: deno check meta-connector/supabase/matok-meta-mcp-v2-candidate.ts
+      - name: Check publish tools are not present
+        shell: bash
+        run: |
+          set -euo pipefail
+          f=meta-connector/supabase/matok-meta-mcp-v2-candidate.ts
+          grep -q 'supabase.auth.getUser' "$f"
+          grep -q 'ownerUid' "$f"
+          grep -q 'connection_status' "$f"
+          ! grep -Eq 'registerTool\("(publish_now|schedule_post|approve)' "$f"

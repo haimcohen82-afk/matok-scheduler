@@ -1,0 +1,15 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="referrer" content="no-referrer"/><meta name="robots" content="noindex,nofollow"/><title>MATOK — כניסה מאובטחת</title><style>body{font-family:Arial,sans-serif;background:#f5f0e8;color:#1a1a2e;display:grid;place-items:center;min-height:100vh;margin:0}main{box-sizing:border-box;background:white;border-radius:15px;width:min(94vw,480px);padding:25px}label,input{display:block;width:100%;box-sizing:border-box}label{margin-top:16px}input{border:1px solid #999;padding:11px;border-radius:8px;margin-top:6px;font-size:16px}button{background:#1a1a2e;color:white;border:0;padding:13px;border-radius:8px;margin-top:20px;width:100%;font-size:16px}#error{color:#a22724}</style></head><body><main><h1>MATOK BASIC</h1><h2>כניסה לאישור חיבור</h2><p>התחבר לחשבון משתמש קיים ב־MATOK Supabase Auth. אין להקליד כאן סיסמת לוח הבקרה של Supabase אם היא שונה.</p><form id="login"><label>דואר אלקטרוני<input id="email" type="email" required autocomplete="username"/></label><label>סיסמה<input id="password" type="password" required autocomplete="current-password"/></label><button id="submit">כניסה</button></form><p id="error" role="alert"></p></main>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const supabase=createClient("https://hotfvqqzahakumwadtiy.supabase.co","sb_publishable_m_gos4Hv-QH8zWxiC6PjkQ_stnTrzRg",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const id=new URL(location.href).searchParams.get("authorization_id");
+const error=document.getElementById("error");
+if(!id||!/^[a-zA-Z0-9_\-:.]{10,1024}$/.test(id)){error.textContent="מזהה האישור חסר";document.getElementById("submit").disabled=true;}
+document.getElementById("login").addEventListener("submit",async(e)=>{
+ e.preventDefault(); const button=document.getElementById("submit");button.disabled=true;error.textContent="";
+ const {error:err}=await supabase.auth.signInWithPassword({email:document.getElementById("email").value,password:document.getElementById("password").value});
+ document.getElementById("password").value="";
+ if(err){error.textContent="כניסה נכשלה. ודא שחשבון MATOK Supabase Auth קיים ושפרטיו נכונים.";button.disabled=false;return;}
+ const next=new URL("/oauth/consent/",location.origin);next.searchParams.set("authorization_id",id);location.replace(next.toString());
+});
+</script></body></html>
