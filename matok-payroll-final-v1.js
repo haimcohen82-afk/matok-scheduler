@@ -27,7 +27,7 @@
     <section class="mpSub active" id="mp-dash"><div class="mpGrid"><article class="mpMetric"><span>עובדים פעילים</span><b id="mpStaff">—</b></article><article class="mpMetric"><span>תלושים בחודש</span><b id="mpPayslips">—</b></article><article class="mpMetric"><span>נמסרו</span><b id="mpDelivered">—</b></article><article class="mpMetric"><span>רשומות שעות</span><b id="mpHours">—</b></article></div><article class="card" style="margin-top:10px"><h2>מרכז שכר ונוכחות</h2><p>מעלים קובץ מרוכז של רואה החשבון או דוח שעות, בודקים את הזיהוי, והמערכת מפרקת אותו לקובץ פרטי לכל עובד.</p><label>חודש להצגה<input id="mpDashPeriod" type="month" value="${periodNow()}"></label><button class="btn secondary" id="mpRefreshDash" style="margin-top:8px">רענון</button></article></section>
     <section class="mpSub" id="mp-pdf"><article class="card"><h2>העלאת תלושי שכר / דוחות שעות</h2><p><b>בחר מה אתה מעלה:</b></p><div class="mpUploadChoice"><button type="button" class="active" data-mp-doc-choice="payslip">תלושי שכר</button><button type="button" data-mp-doc-choice="hours">דוחות נוכחות / שעות</button></div><div class="mpUploadSteps"><span>1. בוחרים סוג וחודש</span><span>2. מעלים PDF ובודקים זיהוי</span><span>3. שומרים לעובדים</span></div><div class="truth" style="margin-bottom:10px"><b>איפה העובדים רואים?</b><br>אחרי השמירה, כל עובד רואה רק את המסמכים שלו באזור האישי תחת „הנתונים שלי”.</div><p>מעלים PDF מרוכז. המערכת מזהה שם מלא, שם מקוצר ושם משפחה, ובמידת הצורך מפעילה OCR גם על PDF סרוק כתמונה. לפני שמירה תמיד רואים את השיוך של כל עמוד.</p><div class="mpGrid"><label>סוג מסמך<select id="mpPdfType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות עבודה</option></select></label><label>חודש<input id="mpPdfPeriod" type="month" value="${periodNow()}"></label><label style="grid-column:span 2">PDF<input id="mpPdfFile" type="file" accept="application/pdf,.pdf"></label></div><label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;font-weight:800"><input id="mpUseOcr" type="checkbox" checked style="width:auto">להפעיל זיהוי OCR אוטומטי כאשר הטקסט ב-PDF אינו מספיק</label><div class="mpOcrNote">המערכת לא שומרת מסמך עד שכל העמודים משויכים לעובד. זיהוי ברמת ביטחון נמוכה נשאר לבחירה ידנית.</div><div class="actions" style="margin-top:9px"><button class="btn primary" id="mpAnalyzePdf">ניתוח וזיהוי</button><button class="btn secondary" id="mpSavePdf" disabled>פירוק ושמירה לעובדים</button></div><div id="mpPdfStatus" class="mpStatus">טרם נבחר קובץ.</div><div id="mpPdfReview"></div></article></section>
 
-    <section class="mpSub" id="mp-single"><article class="card"><h2>העלאת מסמך לעובד מסוים</h2><p>קיבלת קובץ PDF נפרד מרואה החשבון? ניתן לשמור אותו ישירות בארכיון הפרטי של העובד.</p><div class="mpGrid"><label>עובד/ת<select id="mpSingleStaff"></select></label><label>סוג מסמך<select id="mpSingleType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות נוכחות</option></select></label><label>חודש<input type="month" id="mpSinglePeriod"></label><label>קובץ PDF<input id="mpSingleFile" type="file" accept="application/pdf,.pdf"></label></div><div class="truth" style="margin:10px 0"><b>לפני העלאה:</b> בדוק שהקובץ מכיל רק את פרטי העובד שנבחר. לאחר השמירה המסמך יופיע בחשבון האישי שלו בלבד.</div><button type="button" class="btn primary" id="mpSingleSave">שמירה בארכיון הפרטי</button><div class="mpStatus" id="mpSingleStatus" role="status">ממתין לבחירת קובץ ועובד.</div></article></section>
+    <section class="mpSub" id="mp-single"><article class="card"><h2>העלאת מסמך לעובד מסוים</h2><p>קיבלת קובץ PDF נפרד מרואה החשבון? ניתן לשמור אותו ישירות בארכיון הפרטי של העובד.</p><div class="mpGrid"><label>עובד/ת<select id="mpSingleStaff"></select></label><label>סוג מסמך<select id="mpSingleType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות נוכחות</option></select></label><label>חודש<input type="month" id="mpSinglePeriod"></label><label>קובץ PDF<input id="mpSingleFile" type="file" accept="application/pdf,.pdf"></label></div><div class="truth" style="margin:10px 0"><b>לפני העלאה:</b> בדוק שהקובץ מכיל רק את פרטי העובד שנבחר. לאחר השמירה המסמך יופיע בחשבון האישי שלו בלבד.</div><div id="mpSingleStaffStatus" class="mpStatus" role="status">ניתן להעלות גם לעובד לא פעיל, ללא שינוי בסטטוס שלו.</div><button type="button" class="btn primary" id="mpSingleSave">שמירה בארכיון הפרטי</button><div class="mpStatus" id="mpSingleStatus" role="status">ממתין לבחירת קובץ ועובד.</div></article></section>
     <section class="mpSub" id="mp-hours"><article class="card"><h2>שעות ובונוסים</h2><div class="mpGrid"><label>עובד<select id="mpHoursStaff"></select></label><label>חודש<input id="mpHoursPeriod" type="month" value="${periodNow()}"></label><label>שעות רגילות<input id="mpRegular" type="number" step="0.01" min="0"></label><label>שעות נוספות<input id="mpOvertime" type="number" step="0.01" min="0"></label><label>שבת/חג<input id="mpHoliday" type="number" step="0.01" min="0"></label><label>בונוס ₪<input id="mpBonus" type="number" step="0.01"></label><label style="grid-column:span 2">הערת מנהל<input id="mpHoursNote"></label></div><div class="actions" style="margin-top:9px"><button class="btn primary" id="mpSaveHours">שמירה</button><label class="btn secondary">ייבוא Excel/CSV<input id="mpImportHours" type="file" accept=".xlsx,.xls,.csv,.tsv" style="display:none"></label><button class="btn secondary" id="mpExportHours">ייצוא Excel</button></div><div id="mpImportStatus" class="mpStatus">אין ייבוא פעיל.</div></article><article class="card"><div class="employeeHead"><h2>נתוני החודש</h2><div><input id="mpHoursFilter" type="month" value="${periodNow()}"><button class="btn secondary" id="mpRefreshHours">רענון</button></div></div><div id="mpHoursTable" class="mpTable"></div></article></section>
     <section class="mpSub" id="mp-profiles"><article class="card"><h2>נתוני שכר משלימים</h2><p>תעריף שעתי ותאריך תחילת עבודה לצורך בקרה פנימית בלבד.</p><div id="mpProfiles" class="mpTable"></div></article></section>
 
@@ -208,13 +208,60 @@
   async function openEmployeeDoc(id,download){const popup=download?null:window.open('about:blank','_blank');try{const res=await fetch(`${SUPABASE_URL}/functions/v1/employee-document-link`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},body:JSON.stringify({staff_id:appSession.user.id,username:appSession.username,code:appSession.code,document_id:id})}),data=await res.json();if(!res.ok||!data.url)throw new Error(data.error||'open_failed');if(download){const rr=await fetch(data.url),blob=await rr.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=data.file_name||'document.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}else if(popup)popup.location.href=data.url;else window.open(data.url,'_blank')}catch(e){if(popup)popup.close();toast?.('פתיחת המסמך נכשלה')}}
   async function loadEmployeePayrollFinal(){const box=document.getElementById('mfEmployeePayroll');if(!box||!isEmployee())return;box.innerHTML='<small>טוען…</small>';const {data,error}=await supabaseClient.rpc('employee_list_payroll_hours',{p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code});if(error){box.innerHTML='<div class="mfEmpty">טעינת נתוני השעות נכשלה.</div>';return}const rows=data||[];box.innerHTML=rows.length?rows.map(r=>`<div class="mpWorkerRow"><b>${esc(r.period_label)}</b><div class="mpWorkerFacts"><span>רגילות: ${r.regular_hours}</span><span>נוספות: ${r.overtime_hours}</span><span>שבת/חג: ${r.holiday_hours}</span><span>בונוס: ₪${Number(r.bonus_amount||0).toFixed(2)}</span></div>${r.manager_note?`<small>${esc(r.manager_note)}</small>`:''}</div>`).join(''):'<div class="mfEmpty">אין עדיין נתוני שעות ובונוסים בארכיון שלך.</div>'}
 
-  async function fillSingleStaff(){
-    const select=document.getElementById('mpSingleStaff');if(!select)return;
+  // Preserve an archived staff selection across async tab changes and refreshes.
+  let mpSingleSelectorSerial=0;
+  let mpPreferredStaffId='';
+  function syncSingleStaffStatus(){
+    const select=document.getElementById('mpSingleStaff');
+    const hint=document.getElementById('mpSingleStaffStatus');
+    if(!select||!hint)return;
+    const chosen=staff.find(x=>String(x.id)===String(select.value));
+    hint.className='mpStatus';
+    hint.textContent=chosen?.is_active===false
+      ?'עובד לא פעיל: ניתן להעלות מסמכים לארכיון שלו. החשבון נשאר לא פעיל וללא גישה לפורטל.'
+      :chosen?'המסמך יישמר בארכיון הפרטי של '+chosen.full_name+'.'
+      :'בחר עובד. הרשימה כוללת גם עובדים לא פעילים.';
+  }
+  async function fillSingleStaff(preferredId=''){
+    const select=document.getElementById('mpSingleStaff');
+    if(!select)return;
+    const serial=++mpSingleSelectorSerial;
+    const requested=String(preferredId||mpPreferredStaffId||select.value||'');
     try{
       await getStaff(true);
-      select.innerHTML='<option value="">בחירת עובד</option>'+['פעילים','לא פעילים (מסמכי עבר)'].map((label,index)=>'<optgroup label="'+label+'">'+staff.filter(x=>Boolean(x.is_active)===(index===0)).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+'</option>').join('')+'</optgroup>').join('');
-    }catch(error){console.error('fillSingleStaff',error);document.getElementById('mpSingleStatus').textContent='לא ניתן לטעון עובדים; לא בוצעה העלאה.'}
+      if(serial!==mpSingleSelectorSerial)return;
+      select.innerHTML='<option value="">בחירת עובד</option>'+['פעילים','לא פעילים (ארכיון)'].map((label,index)=>
+        '<optgroup label="'+label+'">'+staff.filter(x=>Boolean(x.is_active)===(index===0))
+        .map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+(x.is_active?'':' · לא פעיל')+'</option>').join('')+'</optgroup>').join('');
+      if(requested&&staff.some(x=>String(x.id)===requested))select.value=requested;
+      if(preferredId&&select.value!==String(preferredId)){
+        const error=document.getElementById('mpSingleStatus');
+        if(error){error.textContent='העובד המבוקש לא נמצא בארכיון. לא בוצעה העלאה.';error.className='mpStatus bad'}
+      }
+      mpPreferredStaffId='';
+      select.onchange=syncSingleStaffStatus;
+      syncSingleStaffStatus();
+    }catch(error){
+      if(serial!==mpSingleSelectorSerial)return;
+      console.error('load all staff for document upload',error);
+      const status=document.getElementById('mpSingleStatus');
+      if(status){status.textContent='טעינת רשימת העובדים נכשלה. לא בוצעה העלאה.';status.className='mpStatus bad'}
+    }
   }
+  window.matokOpenStaffDocumentUpload=async function(staffId){
+    if(!isAdmin())return;
+    const employeeId=String(staffId||'');
+    if(!employeeId)return;
+    mpPreferredStaffId=employeeId;
+    initPayrollAdminFinal();
+    document.querySelector('.adminTabs [data-target="payrollFinal"]')?.click();
+    document.querySelector('#payrollFinal .mpNav [data-mp="single"]')?.click();
+    await fillSingleStaff(employeeId);
+    if(document.getElementById('mpSingleStaff')?.value===employeeId){
+      document.getElementById('mpSingleStaffStatus')?.scrollIntoView({block:'center',behavior:'smooth'});
+    }
+  };
+
   async function saveSinglePdf(){
     if(!isAdmin())return;
     const staffId=document.getElementById('mpSingleStaff')?.value,type=document.getElementById('mpSingleType')?.value,period=document.getElementById('mpSinglePeriod')?.value,file=document.getElementById('mpSingleFile')?.files?.[0],status=document.getElementById('mpSingleStatus'),btn=document.getElementById('mpSingleSave');
