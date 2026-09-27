@@ -81,3 +81,13 @@ jobs:
             exit 1
           fi
           node -e 'let a=require("fs").readFileSync("/tmp/mcp-anon","utf8");let x=JSON.parse(a);if(!x.error)process.exit(1);console.log("Unauthenticated MCP request safely refused")'
+
+      - name: Read public MATOK backend configuration flags only
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://hotfvqqzahakumwadtiy.supabase.co/functions/v1/matok-meta-backend/health"
+          status=$(curl -sS --max-time 15 -o /tmp/backend-health -w '%{http_code}' "$url" || true)
+          echo "Backend health HTTP status: $status"
+          if [ "$status" != "200" ]; then exit 1; fi
+          node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/backend-health","utf8"));console.log("Backend alive:",d.ok===true,"Meta settings provided:",d.meta_configured===true,"Backend key configured:",d.api_key_configured===true);if(d.ok!==true)process.exit(1)'
