@@ -207,7 +207,7 @@ for(const required of [
   'mfPrintScheduleBtn','mfEditHistoryModal','mfManagerWeeks','mfOpenCurrentWeek','settingsRows','supplies',
   'mfFinalEmployeeInit','mfFinalAdminInit','mpSingleSave','mpPrintPolicy','mfOpenPayrollAttendancePdf','mfOpenPayrollArchive','employee_get_schedule_notice','employee_mark_schedule_viewed','mfScheduleNotice',
   'admin_get_week_availability_roster','mfRosterEmployee','MATOK_BATCH_ASSIGN_V1',
-  'mfPublishedAvailabilityHidden','mfEmployeeLoginHelp','payrollBootKey','פתח הבא ב-WhatsApp','matokRefreshBackNavigation,'admin_create_onboarding_invite','admin_list_onboarding_records','matokOpenOnboardingProfile'
+  'mfPublishedAvailabilityHidden','mfEmployeeLoginHelp','payrollBootKey','פתח הבא ב-WhatsApp','matokRefreshBackNavigation','admin_create_onboarding_invite','admin_list_onboarding_records','matokOpenOnboardingProfile'
 ])if(!html.includes(required))throw new Error(`production build missing required capability or shell dependency: ${required}`);
 
 // The public form uses only the existing, explicitly publishable client key.
