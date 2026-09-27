@@ -8,21 +8,25 @@ const session=()=>{try{return appSession?.type==='employee'?appSession:null}catc
 const creds=()=>{const s=session();return {p_staff_id:s.user.id,p_username:s.username,p_code:s.code}};
 function message(t){const node=el('epToast');if(node){node.textContent=t;node.classList.add('show');setTimeout(()=>node.classList.remove('show'),3000)}else alert(t)}
 function install(){
- if(installed||!session()||!el('epHome')||!el('epData'))return;
+ if(installed||!session()||!el('mfHome')||!el('mfSectionHeader'))return;
  installed=true;
- const grid=el('epHome').querySelector('.epGrid');
- const btn=document.createElement('button');btn.type='button';btn.className='epAction';btn.id='epOpenClock';
- btn.innerHTML='<span class="epCircle" style="background:#e2f2e9;color:#326c56"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>שעון נוכחות</b><small>כניסה ויציאה</small>';
- const report=grid.querySelector('[data-ep-go="report"]');grid.insertBefore(btn,report||null);btn.onclick=openClock;
- const page=document.createElement('section');page.id='epClock';page.className='epView';
- page.innerHTML='<div class="epTopbar"><button class="epBack" id="epClockBack">← חזרה</button><div><h2>שעון נוכחות</h2><p>רישום שעות אישי</p></div></div><div id="epClockContent"></div>';
+ const grid=el('mfHome').querySelector('.mfActionGrid');
+ const btn=document.createElement('button');btn.type='button';btn.className='mfAction clock';btn.id='epOpenClock';
+ btn.innerHTML='<span class="mfActionIcon" style="background:#e2f2e9;color:#326c56"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>שעון נוכחות</b><small>כניסה ויציאה</small>';
+ const report=grid.querySelector('.mfAction.report');grid.insertBefore(btn,report||null);btn.onclick=openClock;
+ const page=document.createElement('section');page.id='epClock';page.className='panel mfPanelClean';
+ page.innerHTML='<div id="epClockContent"></div>';
  el('worker').appendChild(page);
- el('epClockBack').onclick=()=>{document.querySelectorAll('#worker .epView').forEach(v=>v.classList.remove('active'));el('epHome').classList.add('active')};
+ 
  const css=document.createElement('style');css.textContent='#epClock .clockBox{background:#fff;border:1px solid #d8e1db;border-radius:12px;padding:12px;margin-bottom:9px}#epClock .clockStatus{background:#eef8ef;text-align:center;padding:12px;border-radius:10px;font-size:17px;font-weight:900}#epClock .clockButtons{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px}#epClock .clockButtons button{min-height:45px}#epClock summary{cursor:pointer;font-weight:800;margin:9px 0}#epClock textarea{min-height:64px;width:100%;}#epClock .clockRow{display:flex;justify-content:space-between;gap:7px;padding:8px 2px;border-bottom:1px solid #eee;font-size:11px}#epClock .clockNotice{font-size:11px;color:#636363;line-height:1.55}@media(max-width:500px){#epClock .clockButtons{grid-template-columns:1fr}}';
  document.head.appendChild(css);
 }
 function openClock(){
- document.querySelectorAll('#worker .epView').forEach(v=>v.classList.remove('active'));
+ document.querySelectorAll('#worker > .panel').forEach(v=>v.classList.remove('active'));
+ el('mfHome')?.classList.remove('active');
+ el('mfSectionHeader')?.classList.add('active');
+ if(el('mfSectionTitle'))el('mfSectionTitle').textContent='שעון נוכחות';
+ if(el('mfSectionSub'))el('mfSectionSub').textContent='כניסה, יציאה והיסטוריה אישית';
  el('epClock').classList.add('active');scrollTo({top:0,behavior:'smooth'});load();
 }
 async function load(){
