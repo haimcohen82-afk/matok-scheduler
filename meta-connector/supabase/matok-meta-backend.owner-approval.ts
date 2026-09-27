@@ -1,5 +1,5 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import "jsr:@supabase/functions-js@2.117.2/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 
 const jsonHeaders = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const reply = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: jsonHeaders });
@@ -25,8 +25,9 @@ function db() {
 }
 
 async function graph(path: string, params: Record<string,string|undefined>, method = "GET") {
-  const version = env("META_GRAPH_VERSION") || "v24.0";
+  const version = env("META_GRAPH_VERSION");
   const token = env("META_PAGE_ACCESS_TOKEN");
+  if (!version || !/^v\d+\.\d+$/.test(version)) throw new Error("META_GRAPH_VERSION is not configured correctly");
   if (!token) throw new Error("META_PAGE_ACCESS_TOKEN is not configured");
   const url = new URL(`https://graph.facebook.com/${version}/${path.replace(/^\//, "")}`);
   const body = new URLSearchParams();
@@ -45,7 +46,9 @@ async function graph(path: string, params: Record<string,string|undefined>, meth
 
 async function metaStatus() {
   const pageId = env("META_PAGE_ID");
-  if (!pageId || !configured("META_PAGE_ACCESS_TOKEN")) return { configured: false };
+  if (!pageId || !configured("META_PAGE_ACCESS_TOKEN") || !configured("META_GRAPH_VERSION")) {
+    return { configured: false };
+  }
   const page = await graph(pageId, { fields: "id,name,instagram_business_account" });
   return { configured: true, page, configured_ig_user_id: env("META_IG_USER_ID") || null };
 }
@@ -88,7 +91,7 @@ async function audit(action: string, actor: string, postId: string|null, details
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   if (req.method === "GET" && url.pathname.endsWith("/health")) {
-    return reply({ ok: true, service: "MATOK Meta Backend", meta_configured: configured("META_PAGE_ACCESS_TOKEN") && configured("META_PAGE_ID"), api_key_configured: configured("MATOK_API_KEY") });
+    return reply({ ok: true, service: "MATOK Meta Backend", meta_configured: configured("META_PAGE_ACCESS_TOKEN") && configured("META_PAGE_ID") && configured("META_GRAPH_VERSION"), api_key_configured: configured("MATOK_API_KEY") });
   }
 
 

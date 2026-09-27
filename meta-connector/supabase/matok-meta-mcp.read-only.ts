@@ -1,8 +1,8 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createMcpHandler, McpServer } from "npm:@modelcontextprotocol/server@^2.0.0";
-import { pipeline } from "npm:@supabase/middleware@^0.5.0";
-import { withOAuthProtectedResource, withSupabase } from "npm:@supabase/server@^1.6.0";
-import { z } from "npm:zod@^4.3.6";
+import "jsr:@supabase/functions-js@2.117.2/edge-runtime.d.ts";
+import { createMcpHandler, McpServer } from "npm:@modelcontextprotocol/server@2.1.0";
+import { pipeline } from "npm:@supabase/middleware@0.6.0";
+import { withOAuthProtectedResource, withSupabase } from "npm:@supabase/server@1.8.0";
+import { z } from "npm:zod@4.6.5";
 
 // Fail-closed MATOK MCP bridge. No publish, approve, schedule or destructive tool is exposed.
 // Existing MATOK backend is accessed server-side only; secrets are never returned to Claude.

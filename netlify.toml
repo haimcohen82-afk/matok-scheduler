@@ -1,2 +1,30 @@
 [build]
   publish = "."
+
+[[headers]]
+  for = "/oauth/*"
+  [headers.values]
+    Cache-Control = "no-store, max-age=0"
+    Content-Security-Policy = "default-src 'none'; base-uri 'none'; connect-src https://hotfvqqzahakumwadtiy.supabase.co; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Referrer-Policy = "no-referrer"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/login/*"
+  [headers.values]
+    Cache-Control = "no-store, max-age=0"
+    Content-Security-Policy = "default-src 'none'; base-uri 'none'; connect-src https://hotfvqqzahakumwadtiy.supabase.co; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Referrer-Policy = "no-referrer"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/auth/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+    X-Content-Type-Options = "nosniff"
