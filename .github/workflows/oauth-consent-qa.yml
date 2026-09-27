@@ -53,3 +53,31 @@ jobs:
             sleep 8
           done
           echo "Preview paths were not HTTP 200 after retries" >&2; exit 1
+
+      - name: Check Supabase OAuth public discovery without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://hotfvqqzahakumwadtiy.supabase.co/.well-known/oauth-authorization-server/auth/v1"
+          status=$(curl -sS --max-time 15 -o /tmp/oauth-discovery -w '%{http_code}' "$endpoint" || true)
+          echo "Supabase OAuth discovery HTTP status: $status"
+          if [ "$status" != "200" ]; then
+            echo "OAuth discovery not yet enabled or unavailable" >&2
+            exit 1
+          fi
+          node -e 'const fs=require("fs");const d=JSON.parse(fs.readFileSync("/tmp/oauth-discovery","utf8"));if(!d.authorization_endpoint||!d.token_endpoint) process.exit(1);console.log("OAuth discovery endpoints present; no credentials accessed")'
+      - name: Probe read-only MCP response without a token
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://hotfvqqzahakumwadtiy.supabase.co/functions/v1/matok-meta-mcp"
+          status=$(curl -sS --max-time 20 -o /tmp/mcp-anon -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' "$endpoint" || true)
+          echo "Anonymous MCP status: $status"
+          if [ "$status" != "401" ] && [ "$status" != "403" ] && [ "$status" != "503" ]; then
+            echo "MCP auth gate unexpected response; no credentials involved" >&2
+            exit 1
+          fi
+          node -e 'let a=require("fs").readFileSync("/tmp/mcp-anon","utf8");let x=JSON.parse(a);if(!x.error)process.exit(1);console.log("Unauthenticated MCP request safely refused")'
