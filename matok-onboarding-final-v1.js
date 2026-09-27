@@ -42,7 +42,7 @@
       '<div class="intakeRow"><label>קליטת קובץ עובד מקורי (PDF, תמונה, Word, Excel, טקסט)<input id="intakeUploadFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.docx,.xlsx,.xls,.txt,.csv"></label>'+
       '<button type="button" class="btn secondary" id="intakeRefresh">רענון קליטות</button></div>'+
       '<div id="intakeStatus" role="status" class="intakeState">כאן יופיעו שאלונים שהוגשו וקובצי קליטה שנותחו.</div>'+
-      '<div id="intakeQueue"></div>';
+      '<div id="intakeGenerated"></div><div id="intakeQueue"></div>';
     const grid=$('employeeGrid');
     if(grid)grid.before(root);else panel.prepend(root);
     $('intakeSendWa').onclick=()=>sendInvitation(true);
@@ -67,25 +67,45 @@
     if(!isAdmin())return;
     const raw=$('intakeTargetPhone').value.trim();
     const digits=phone972(raw);
-    if(wa&&(digits.length<9||digits.length>15)){feedback('יש להזין מספר WhatsApp תקין, עם קידומת מדינה לפי הצורך.',true);return}
+    if(wa&&(digits.length<9||digits.length>15)){
+      feedback('יש להזין מספר WhatsApp תקין, עם קידומת מדינה לפי הצורך.',true);return;
+    }
+    const popup=wa?window.open('about:blank','_blank'):null;
     const b=$(wa?'intakeSendWa':'intakeCopyLink');b.disabled=true;
     try{
       const res=await supabaseClient.rpc('admin_create_onboarding_invite');
       if(res.error||!res.data)throw res.error||new Error('no_token');
       const url=location.origin+'/join.html?t='+encodeURIComponent(res.data);
+      const message='שלום, מצורף שאלון קליטת עובד/ת ל־MATOK BASIC.\nנא למלא את הפרטים בקישור האישי:\n'+url+'\nתודה, הנהלת MATOK BASIC.';
+      const whatsapp='https://wa.me/'+digits+'?text='+encodeURIComponent(message);
+      const holder=$('intakeGenerated');
+      holder.innerHTML='<div class="intakeState good"><b>קישור שאלון נוצר:</b> '+
+        '<input type="text" id="intakeLinkValue" aria-label="קישור שאלון חד־פעמי" readonly value="'+safe(url)+'" style="width:100%;margin:7px 0">'+
+        (wa?'<a target="_blank" rel="noreferrer noopener" href="'+safe(whatsapp)+'">פתיחת הודעת WhatsApp מוכנה</a>':'')+
+        ' <button type="button" class="btn secondary" id="intakeLinkCopy">העתקת קישור</button></div>';
+      $('intakeLinkCopy').onclick=async()=>{
+        try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(url);
+          else{$('intakeLinkValue').select();document.execCommand('copy')}
+          feedback('הקישור הועתק.');}
+        catch(_){$('intakeLinkValue').select();feedback('הקישור מוצג ומסומן להעתקה ידנית.',true)}
+      };
       if(wa){
-        const message='שלום, מצורף שאלון קליטת עובד/ת ל־MATOK BASIC.\nנא למלא את הפרטים בקישור האישי:\n'+url+'\nתודה, הנהלת MATOK BASIC.';
-        const popup=window.open('https://wa.me/'+digits+'?text='+encodeURIComponent(message),'_blank','noopener,noreferrer');
-        if(!popup)feedback('קישור אישי נוצר. ייתכן שהדפדפן חסם את WhatsApp — אפשר להעתיק את הקישור.');
-        else feedback('נפתח WhatsApp עם ההודעה. יש ללחוץ על שליחה בחלון WhatsApp.');
+        if(popup){
+          popup.opener=null;
+          popup.location.replace(whatsapp);
+          feedback('WhatsApp נפתח עם ההודעה. יש ללחוץ על שליחה.');
+        }else feedback('הקישור נוצר, אך פתיחת WhatsApp נחסמה. לחץ על קישור WhatsApp שמופיע כאן.');
       }else{
-        if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(url);
-        else{const el=document.createElement('textarea');el.value=url;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove()}
-        feedback('נוצר והועתק קישור חד־פעמי. הדבק אותו בהודעה לנמען.');
+        $('intakeLinkCopy').click();
+        feedback('הקישור נוצר. אפשר להעתיק אותו או לשלוח לכל מספר.');
       }
-    }catch(e){console.error('onboarding invite',e);feedback('יצירת הקישור נכשלה. לא נשלחה הודעה.',true)}
-    finally{b.disabled=false}
+    }catch(e){
+      if(popup)popup.close();
+      console.error('onboarding invite',e);
+      feedback('יצירת הקישור נכשלה. לא נשלחה הודעה.',true);
+    }finally{b.disabled=false}
   }
+
   async function loadItems(){
     if(!isAdmin()||listBusy)return;
     listBusy=true;
@@ -291,9 +311,26 @@
       let text='';
       for(let i=1;i<=Math.min(pdf.numPages,30);i++){
         const page=await pdf.getPage(i),r=await page.getTextContent();
-        text+='\n-- עמוד '+i+' --\n'+r.items.map(x=>x.str).join(' ')+'\n';
+        text+='\n-- עמוד '+i+' --\n'+r.items.map(x=>x.str+(x.hasEOL?'\n':' ')).join('')+'\n';
       }
-      if(text.trim().length<45)throw new Error('הקובץ סרוק. יש להשוות למקור ולמלא פרטים ידנית.');
+      if(text.trim().length<45){
+        try{
+          await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js','Tesseract');
+          let recognized='';
+          for(let pageNumber=1;pageNumber<=Math.min(pdf.numPages,3);pageNumber++){
+            const page=await pdf.getPage(pageNumber),viewport=page.getViewport({scale:1.5});
+            const canvas=document.createElement('canvas');
+            canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+            await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+            const result=await Tesseract.recognize(canvas,'heb+eng');
+            recognized+='\n-- OCR עמוד '+pageNumber+' --\n'+(result.data?.text||'');
+            canvas.width=0;canvas.height=0;
+          }
+          text=recognized;
+        }catch(err){console.warn('scanned PDF OCR fallback',err)}
+        if(text.trim().length<45)throw new Error('הקובץ סרוק או לא קריא; המקור נשמר לבדיקה ידנית.');
+        if(pdf.numPages>3)text+='\nנדרש להשוות למקור: OCR בוצע לשלושת העמודים הראשונים בלבד.';
+      }
       return text.slice(0,120000);
     }
     if(['jpg','jpeg','png','webp'].includes(suffix)){
