@@ -419,6 +419,8 @@
       feedback('שמירת קובץ הקליטה נכשלה. אין לשייך עובד לפני בדיקה: '+String(e?.message||''),true);
     }
   }
+  // Pure parser exposed for verification; it has no database or file access.
+  window.matokOnboardingParseText=parseText;
   window.matokOpenOnboardingProfile=async staffId=>{
     if(!$('matokIntakeHub'))init();
     if(!items.length)await loadItems();
