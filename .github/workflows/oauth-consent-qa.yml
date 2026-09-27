@@ -1,0 +1,50 @@
+name: MATOK OAuth consent preview verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'oauth/consent/**'
+      - 'login/**'
+      - '.github/workflows/oauth-consent-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  consent-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify isolated consent source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s oauth/consent/index.html
+          test -s login/index.html
+          grep -q 'getAuthorizationDetails' oauth/consent/index.html
+          grep -q 'approveAuthorization' oauth/consent/index.html
+          grep -q 'denyAuthorization' oauth/consent/index.html
+          grep -q 'signInWithPassword' login/index.html
+          ! grep -Eiq 'service.role|sk_[A-Za-z0-9]{12,}' oauth/consent/index.html login/index.html
+          grep -q 'meta name="robots" content="noindex,nofollow"' oauth/consent/index.html
+      - name: Probe the preview routes (public status only)
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No pull request number; static checks passed"; exit 0
+          fi
+          domain="deploy-preview-${PR_NUMBER}--voluble-marigold-95c410.netlify.app"
+          for i in $(seq 1 12); do
+            failed=0
+            for path in oauth/consent/ login/; do
+              status=$(curl -sS -L --max-time 15 -o /tmp/page -w '%{http_code}' "https://${domain}/${path}" || true)
+              if [ "${status}" != "200" ] || ! grep -q 'MATOK' /tmp/page; then failed=1; fi
+              printf '%s %s => %s\n' "${domain}" "${path}" "${status}"
+            done
+            if [ "${failed}" = "0" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "Preview paths were not HTTP 200 after retries" >&2; exit 1
