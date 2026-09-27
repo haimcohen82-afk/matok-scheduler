@@ -18,3 +18,11 @@
   for = "/version.json"
   [headers.values]
     Cache-Control = "no-store, max-age=0"
+
+# Candidate questionnaire links are bearer tokens: never forward URL parameters.
+[[headers]]
+  for = "/join.html"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    X-Frame-Options = "DENY"
+    Cache-Control = "no-store"
