@@ -13,7 +13,10 @@ const MODULES=[
   'matok-realtime-final-v1.js',
   'matok-admin-tools-final-v1.js',
   'matok-manager-home-final-v1.js',
-  'matok-availability-roster-final-v1.js'
+  'matok-availability-roster-final-v1.js',
+  'matok-compact-install-v2.js',
+  'matok-attendance-employee-v1.js',
+  'matok-attendance-manager-v1.js'
 ];
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
