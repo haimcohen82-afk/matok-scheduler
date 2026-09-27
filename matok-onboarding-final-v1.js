@@ -20,6 +20,11 @@
   function feedback(message,error=false){
     const box=$('intakeStatus');if(!box)return;
     box.className='intakeState'+(error?' bad':' good');box.textContent=message;
+    const modalStatus=$('intakeReviewStatus');const modal=$('matokIntakeModal');
+    if(modalStatus&&modal?.classList.contains('show')){
+      modalStatus.className='intakeState'+(error?' bad':' good');modalStatus.textContent=message;
+      modalStatus.style.display='block';
+    }
   }
   const phone972=raw=>{
     const x=String(raw||'').trim().replace(/[\s()\-]/g,'');
@@ -57,6 +62,7 @@
     const m=document.createElement('div');m.id='matokIntakeModal';m.className='modal';
     m.innerHTML='<section style="width:min(1100px,98vw);max-height:95vh;overflow:auto"><button type="button" class="close" id="intakeClose">×</button>'+
       '<h2 id="intakeTitle">בדיקת קליטת עובד</h2>'+
+      '<div id="intakeReviewStatus" class="intakeState" style="display:none"></div>'+
       '<div class="intakeReview" id="intakeReview"><div><div id="intakeFields" class="intakeFields"></div>'+
       '<div class="intakeModalActions" id="intakeReviewActions"></div></div>'+
       '<div class="intakeOriginal" id="intakeOriginal"><h3>מסמך המקור · בדיקה לפי צורך</h3><div id="intakeOriginalViewer"></div></div></div><div id="intakeFullTextPanel" style="display:none;white-space:pre-wrap;overflow:auto;max-height:260px;background:#f6f5f0;border:1px solid #ddd;padding:10px;border-radius:10px;margin-top:9px"></div></section>';
@@ -194,6 +200,7 @@
     ensureModal();$('intakeReview').classList.remove('withOriginal');
     $('intakeFullTextPanel').style.display='none';$('intakeFullTextPanel').textContent='';
     $('intakeOriginalViewer').textContent='';
+    $('intakeReviewStatus').textContent='';$('intakeReviewStatus').style.display='none';
     $('intakeTitle').textContent=(active.review_status==='approved'?'כרטיס קליטה':'בדיקת קליטה')+
       ' · '+String(active.details?.full_name||'ללא שם');
     const editing=active.review_status==='pending';
@@ -324,6 +331,7 @@
     }
     if(suffix==='pdf'){
       await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js','pdfjsLib');
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
       const pdf=await pdfjsLib.getDocument({data}).promise;
       let text='';
       for(let i=1;i<=Math.min(pdf.numPages,30);i++){
