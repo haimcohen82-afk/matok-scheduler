@@ -23,20 +23,44 @@
   function ensureAdminTab(){const tabs=document.querySelector('.adminTabs'),admin=document.getElementById('admin');if(!tabs||!admin)return false;let btn=tabs.querySelector('[data-target="payrollFinal"]');if(!btn){btn=document.createElement('button');btn.dataset.target='payrollFinal';btn.textContent='שכר ומסמכים';tabs.appendChild(btn);btn.onclick=()=>{tabs.querySelectorAll('button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');admin.querySelectorAll(':scope>.panel').forEach(x=>x.classList.remove('active'));document.getElementById('payrollFinal').classList.add('active');initPayrollAdminFinal()}}
     let p=document.getElementById('payrollFinal');if(!p){p=document.createElement('section');p.id='payrollFinal';p.className='panel';admin.appendChild(p)}return true}
   function syncUploadChoice(){const type=document.getElementById('mpPdfType')?.value||'payslip';document.querySelectorAll('#mp-pdf [data-mp-doc-choice]').forEach(b=>b.classList.toggle('active',b.dataset.mpDocChoice===type))}
-  function adminHtml(){const p=document.getElementById('payrollFinal');if(!p||p.dataset.built==='1')return;p.dataset.built='1';p.innerHTML=`<div class="mpNav"><button class="btn primary" data-mp="dash">לוח בקרה</button><button class="btn secondary" data-mp="pdf">העלאת תלושים ודוחות</button><button class="btn secondary" data-mp="single">העלאה לעובד אחד</button><button class="btn secondary" data-mp="hours">שעות ובונוסים</button><button class="btn secondary" data-mp="profiles">נתוני שכר</button><button class="btn secondary" data-mp="delivery">ארכיון ומסירה</button><button class="btn secondary" data-mp="policy">נוהל שכר להדפסה</button></div>
+  function adminHtml(){const p=document.getElementById('payrollFinal');if(!p||p.dataset.built==='1')return;p.dataset.built='1';p.innerHTML=`<div class="employeeHead" style="margin-bottom:10px"><div><h2>שכר ומסמכים</h2><small>חזרה למרכז הניהול בכל שלב</small></div><button type="button" class="btn secondary" id="mpBackToAdmin">← חזרה לניהול</button></div><div class="mpNav"><button class="btn primary" data-mp="dash">לוח בקרה</button><button class="btn secondary" data-mp="pdf">העלאת תלושים ודוחות</button><button class="btn secondary" data-mp="single">העלאה לעובד אחד</button><button class="btn secondary" data-mp="hours">שעות ובונוסים</button><button class="btn secondary" data-mp="profiles">נתוני שכר</button><button class="btn secondary" data-mp="delivery">ארכיון ומסירה</button><button class="btn secondary" data-mp="policy">נוהל שכר להדפסה</button></div>
     <section class="mpSub active" id="mp-dash"><div class="mpGrid"><article class="mpMetric"><span>עובדים פעילים</span><b id="mpStaff">—</b></article><article class="mpMetric"><span>תלושים בחודש</span><b id="mpPayslips">—</b></article><article class="mpMetric"><span>נמסרו</span><b id="mpDelivered">—</b></article><article class="mpMetric"><span>רשומות שעות</span><b id="mpHours">—</b></article></div><article class="card" style="margin-top:10px"><h2>מרכז שכר ונוכחות</h2><p>מעלים קובץ מרוכז של רואה החשבון או דוח שעות, בודקים את הזיהוי, והמערכת מפרקת אותו לקובץ פרטי לכל עובד.</p><label>חודש להצגה<input id="mpDashPeriod" type="month" value="${periodNow()}"></label><button class="btn secondary" id="mpRefreshDash" style="margin-top:8px">רענון</button></article></section>
     <section class="mpSub" id="mp-pdf"><article class="card"><h2>העלאת תלושי שכר / דוחות שעות</h2><p><b>בחר מה אתה מעלה:</b></p><div class="mpUploadChoice"><button type="button" class="active" data-mp-doc-choice="payslip">תלושי שכר</button><button type="button" data-mp-doc-choice="hours">דוחות נוכחות / שעות</button></div><div class="mpUploadSteps"><span>1. בוחרים סוג וחודש</span><span>2. מעלים PDF ובודקים זיהוי</span><span>3. שומרים לעובדים</span></div><div class="truth" style="margin-bottom:10px"><b>איפה העובדים רואים?</b><br>אחרי השמירה, כל עובד רואה רק את המסמכים שלו באזור האישי תחת „הנתונים שלי”.</div><p>מעלים PDF מרוכז. המערכת מזהה שם מלא, שם מקוצר ושם משפחה, ובמידת הצורך מפעילה OCR גם על PDF סרוק כתמונה. לפני שמירה תמיד רואים את השיוך של כל עמוד.</p><div class="mpGrid"><label>סוג מסמך<select id="mpPdfType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות עבודה</option></select></label><label>חודש<input id="mpPdfPeriod" type="month" value="${periodNow()}"></label><label style="grid-column:span 2">PDF<input id="mpPdfFile" type="file" accept="application/pdf,.pdf"></label></div><label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;font-weight:800"><input id="mpUseOcr" type="checkbox" checked style="width:auto">להפעיל זיהוי OCR אוטומטי כאשר הטקסט ב-PDF אינו מספיק</label><div class="mpOcrNote">המערכת לא שומרת מסמך עד שכל העמודים משויכים לעובד. זיהוי ברמת ביטחון נמוכה נשאר לבחירה ידנית.</div><div class="actions" style="margin-top:9px"><button class="btn primary" id="mpAnalyzePdf">ניתוח וזיהוי</button><button class="btn secondary" id="mpSavePdf" disabled>פירוק ושמירה לעובדים</button></div><div id="mpPdfStatus" class="mpStatus">טרם נבחר קובץ.</div><div id="mpPdfReview"></div></article></section>
 
-    <section class="mpSub" id="mp-single"><article class="card"><h2>העלאת מסמך לעובד מסוים</h2><p>קיבלת קובץ PDF נפרד מרואה החשבון? ניתן לשמור אותו ישירות בארכיון הפרטי של העובד.</p><div class="mpGrid"><label>עובד/ת<select id="mpSingleStaff"></select></label><label>סוג מסמך<select id="mpSingleType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות נוכחות</option></select></label><label>חודש<input type="month" id="mpSinglePeriod"></label><label>קובץ PDF<input id="mpSingleFile" type="file" accept="application/pdf,.pdf"></label></div><div class="truth" style="margin:10px 0"><b>לפני העלאה:</b> בדוק שהקובץ מכיל רק את פרטי העובד שנבחר. לאחר השמירה המסמך יופיע בחשבון האישי שלו בלבד.</div><button type="button" class="btn primary" id="mpSingleSave">שמירה בארכיון הפרטי</button><div class="mpStatus" id="mpSingleStatus" role="status">ממתין לבחירת קובץ ועובד.</div></article></section>
+    <section class="mpSub" id="mp-single"><article class="card"><h2>העלאת מסמך לעובד מסוים</h2><p>קיבלת קובץ PDF נפרד מרואה החשבון? ניתן לשמור אותו ישירות בארכיון הפרטי של העובד.</p><div class="mpGrid"><label>עובד/ת<select id="mpSingleStaff"></select></label><label>סוג מסמך<select id="mpSingleType"><option value="payslip">תלוש שכר</option><option value="hours">דוח שעות נוכחות</option></select></label><label>חודש<input type="month" id="mpSinglePeriod"></label><label>קובץ PDF<input id="mpSingleFile" type="file" accept="application/pdf,.pdf"></label></div><div class="truth" style="margin:10px 0"><b>לפני העלאה:</b> בדוק שהקובץ מכיל רק את פרטי העובד שנבחר. לאחר השמירה המסמך יופיע בחשבון האישי שלו בלבד.</div><div id="mpSingleStaffStatus" class="mpStatus" role="status">ניתן להעלות גם לעובד לא פעיל, ללא שינוי בסטטוס שלו.</div><button type="button" class="btn primary" id="mpSingleSave">שמירה בארכיון הפרטי</button><div class="mpStatus" id="mpSingleStatus" role="status">ממתין לבחירת קובץ ועובד.</div></article></section>
     <section class="mpSub" id="mp-hours"><article class="card"><h2>שעות ובונוסים</h2><div class="mpGrid"><label>עובד<select id="mpHoursStaff"></select></label><label>חודש<input id="mpHoursPeriod" type="month" value="${periodNow()}"></label><label>שעות רגילות<input id="mpRegular" type="number" step="0.01" min="0"></label><label>שעות נוספות<input id="mpOvertime" type="number" step="0.01" min="0"></label><label>שבת/חג<input id="mpHoliday" type="number" step="0.01" min="0"></label><label>בונוס ₪<input id="mpBonus" type="number" step="0.01"></label><label style="grid-column:span 2">הערת מנהל<input id="mpHoursNote"></label></div><div class="actions" style="margin-top:9px"><button class="btn primary" id="mpSaveHours">שמירה</button><label class="btn secondary">ייבוא Excel/CSV<input id="mpImportHours" type="file" accept=".xlsx,.xls,.csv,.tsv" style="display:none"></label><button class="btn secondary" id="mpExportHours">ייצוא Excel</button></div><div id="mpImportStatus" class="mpStatus">אין ייבוא פעיל.</div></article><article class="card"><div class="employeeHead"><h2>נתוני החודש</h2><div><input id="mpHoursFilter" type="month" value="${periodNow()}"><button class="btn secondary" id="mpRefreshHours">רענון</button></div></div><div id="mpHoursTable" class="mpTable"></div></article></section>
     <section class="mpSub" id="mp-profiles"><article class="card"><h2>נתוני שכר משלימים</h2><p>תעריף שעתי ותאריך תחילת עבודה לצורך בקרה פנימית בלבד.</p><div id="mpProfiles" class="mpTable"></div></article></section>
 
     <section class="mpSub" id="mp-policy"><article class="card"><h2>נוהל מסירת תלושים, שעות ובונוסים</h2><p>מסמך פנימי להדפסה או לשמירה כ-PDF. אינו מחליף הנחיות רואה החשבון.</p><div id="mpPolicyText" class="mpStatus" style="background:#fff;border:1px solid var(--line);padding:18px;line-height:1.85"><h2 style="text-align:center">MATOK BASIC</h2><h3 style="text-align:center">נוהל מסירת תלושי שכר, דוחות נוכחות ובונוסים</h3><p><b>אחראי:</b> הנהלת MATOK BASIC</p><p>1. ההנהלה קולטת מסמכים לפי תקופה, בודקת את שיוך כל מסמך לעובד ושומרת אותו באזור הפרטי בלבד.</p><p>2. העובד מקבל גישה לתלוש השכר ולדוח הנוכחות שלו דרך פורטל העובדים המאובטח; אין לשלוח מסמכים של עובדים אחרים.</p><p>3. נתוני שעות ובונוסים בפורטל הם נתוני בקרה. התלוש הרשמי שהופק על ידי הגורם המוסמך הוא המסמך הקובע.</p><p>4. עובד שמזהה פער בשעות, במסמך או בבונוס מגיש בירור דרך המערכת, וההנהלה בודקת ומתעדת את הטיפול.</p><p>5. מסמכים קודמים נשמרים בארכיון האישי לפי חודש ובהרשאות גישה פרטיות.</p><div style="display:flex;justify-content:space-between;gap:24px;margin-top:42px"><span>___________________<br>אישור הנהלה</span><span>___________________<br>אישור קבלה / קריאה</span></div></div><div class="actions" style="margin-top:12px"><button type="button" class="btn primary" id="mpPrintPolicy">הדפסה / שמירה כ-PDF</button></div></article></section>
     <section class="mpSub" id="mp-delivery"><article class="card"><div class="employeeHead"><div><h2>מסירה לעובדים</h2><small>הקובץ נשאר פרטי בפורטל. WhatsApp שולח קישור כניסה בלבד.</small></div><div><input id="mpDeliveryPeriod" type="month" value="${periodNow()}"><button class="btn secondary" id="mpRefreshDelivery">רענון</button><button type="button" class="btn secondary" id="mpExportDelivery">דוח מסירה Excel</button></div></div><div id="mpDelivery" class="mpTable"></div></article></section>`;
+    document.getElementById('mpBackToAdmin').onclick=()=>document.querySelector('.adminTabs [data-target="overview"]')?.click();
     p.querySelectorAll('[data-mp]').forEach(b=>b.onclick=()=>{p.querySelectorAll('[data-mp]').forEach(x=>{x.classList.toggle('primary',x===b);x.classList.toggle('secondary',x!==b)});p.querySelectorAll('.mpSub').forEach(x=>x.classList.toggle('active',x.id==='mp-'+b.dataset.mp));if(b.dataset.mp==='dash')loadDash();if(b.dataset.mp==='hours')loadHoursAdmin();if(b.dataset.mp==='profiles')loadProfiles();if(b.dataset.mp==='delivery')loadDelivery();if(b.dataset.mp==='single')fillSingleStaff()});
     p.querySelectorAll('[data-mp-doc-choice]').forEach(b=>b.onclick=()=>{const s=document.getElementById('mpPdfType');if(s){s.value=b.dataset.mpDocChoice;syncUploadChoice()}});const typeSelect=document.getElementById('mpPdfType');if(typeSelect)typeSelect.onchange=syncUploadChoice;syncUploadChoice();document.getElementById('mpRefreshDash').onclick=loadDash;document.getElementById('mpAnalyzePdf').onclick=analyzePdf;document.getElementById('mpSavePdf').onclick=savePdf;document.getElementById('mpSaveHours').onclick=saveHours;document.getElementById('mpImportHours').onchange=importHours;document.getElementById('mpExportHours').onclick=exportHours;document.getElementById('mpRefreshHours').onclick=loadHoursAdmin;document.getElementById('mpRefreshDelivery').onclick=loadDelivery;document.getElementById('mpExportDelivery').onclick=exportDelivery;document.getElementById('mpSingleSave').onclick=saveSinglePdf;document.getElementById('mpSinglePeriod').value=periodNow();document.getElementById('mpPrintPolicy').onclick=printPayrollPolicy;
   }
-  async function getStaff(force=false){if(staff.length&&!force)return staff;const {data,error}=await supabaseClient.from('staff').select('id,full_name,phone,username,role_name,is_active').order('is_active',{ascending:false}).order('full_name');if(error)throw error;staff=data||[];return staff}
+  async function getStaff(force=false){
+    if(staff.length&&!force)return staff;
+    const primary=await supabaseClient.from('staff')
+      .select('id,full_name,phone,username,role_name,is_active')
+      .order('is_active',{ascending:false}).order('full_name');
+    let rows=primary.error?[]:(primary.data||[]);
+    // When a staff table policy limits the direct list, the existing admin
+    // payroll-profile RPC can still supply the archived staff identifiers.
+    if(isAdmin()){
+      const archived=await supabaseClient.rpc('admin_list_payroll_profiles_v2');
+      if(!archived.error){
+        const known=new Set(rows.map(x=>String(x.id)));
+        for(const p of archived.data||[]){
+          const id=String(p.staff_id||'');
+          if(!id||known.has(id))continue;
+          rows.push({id,full_name:p.full_name||'עובד ללא שם',phone:p.phone||'',
+            username:p.username||'',role_name:p.role_name||'מכירה',is_active:p.is_active===true});
+          known.add(id);
+        }
+      }else if(primary.error)throw primary.error;
+    }else if(primary.error)throw primary.error;
+    staff=rows;
+    return staff;
+  }
   async function loadDash(){if(!isAdmin())return;const period=document.getElementById('mpDashPeriod')?.value||periodNow();const {data,error}=await supabaseClient.rpc('admin_payroll_dashboard',{p_period:period});if(error)return;const x=data?.[0]||{};document.getElementById('mpStaff').textContent=x.active_staff??0;document.getElementById('mpPayslips').textContent=x.payslips??0;document.getElementById('mpDelivered').textContent=x.delivered??0;document.getElementById('mpHours').textContent=x.hours_rows??0}
   function setPdfStatus(t,kind=''){const x=document.getElementById('mpPdfStatus');if(x){x.className='mpStatus '+kind;x.textContent=t}}
   function matchPage(text){
@@ -181,6 +205,7 @@
     box.querySelectorAll('[data-review-doc]').forEach(b=>b.onclick=async()=>{const r=await supabaseClient.rpc('admin_mark_employee_document',{p_document_id:b.dataset.reviewDoc,p_action:'reviewed'});if(r.error){toast?.('הסימון נכשל');return}loadDelivery()});
     box.querySelectorAll('[data-wa-doc]').forEach(b=>b.onclick=()=>{
       const r=docRows.find(x=>x.id===b.dataset.waDoc);if(!r)return;
+      if(staff.find(x=>String(x.id)===String(r.staff_id))?.is_active===false){toast?.('העובד לא פעיל: המסמך נשמר בארכיון, אך אין לו גישה לפורטל. יש למסור את המסמך בדרך מתאימה לאחר אימות זהות.');return}
       if(!r.phone){toast?.('לעובד אין מספר טלפון שמור');return}
       const msg='היי '+r.full_name+',\n'+(r.doc_type==='payslip'?'תלוש השכר':'דוח השעות')+' שלך לחודש '+r.period_label+' זמין באזור האישי במערכת MATOK.\n\nכניסה:\nhttps://voluble-marigold-95c410.netlify.app/?login=employee\n\nלאחר הכניסה: הנתונים שלי ← תלושים ודוחות.';
       window.open('https://wa.me/'+phone972(r.phone)+'?text='+encodeURIComponent(msg),'_blank');
@@ -207,37 +232,137 @@
   async function openEmployeeDoc(id,download){const popup=download?null:window.open('about:blank','_blank');try{const res=await fetch(`${SUPABASE_URL}/functions/v1/employee-document-link`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},body:JSON.stringify({staff_id:appSession.user.id,username:appSession.username,code:appSession.code,document_id:id})}),data=await res.json();if(!res.ok||!data.url)throw new Error(data.error||'open_failed');if(download){const rr=await fetch(data.url),blob=await rr.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=data.file_name||'document.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}else if(popup)popup.location.href=data.url;else window.open(data.url,'_blank')}catch(e){if(popup)popup.close();toast?.('פתיחת המסמך נכשלה')}}
   async function loadEmployeePayrollFinal(){const box=document.getElementById('mfEmployeePayroll');if(!box||!isEmployee())return;box.innerHTML='<small>טוען…</small>';const {data,error}=await supabaseClient.rpc('employee_list_payroll_hours',{p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code});if(error){box.innerHTML='<div class="mfEmpty">טעינת נתוני השעות נכשלה.</div>';return}const rows=data||[];box.innerHTML=rows.length?rows.map(r=>`<div class="mpWorkerRow"><b>${esc(r.period_label)}</b><div class="mpWorkerFacts"><span>רגילות: ${r.regular_hours}</span><span>נוספות: ${r.overtime_hours}</span><span>שבת/חג: ${r.holiday_hours}</span><span>בונוס: ₪${Number(r.bonus_amount||0).toFixed(2)}</span></div>${r.manager_note?`<small>${esc(r.manager_note)}</small>`:''}</div>`).join(''):'<div class="mfEmpty">אין עדיין נתוני שעות ובונוסים בארכיון שלך.</div>'}
 
-  async function fillSingleStaff(){
-    const select=document.getElementById('mpSingleStaff');if(!select)return;
+  // Preserve an archived staff selection across async tab changes and refreshes.
+  let mpSingleSelectorSerial=0;
+  let mpPreferredStaffId='';
+  function syncSingleStaffStatus(){
+    const select=document.getElementById('mpSingleStaff');
+    const hint=document.getElementById('mpSingleStaffStatus');
+    if(!select||!hint)return;
+    const chosen=staff.find(x=>String(x.id)===String(select.value));
+    hint.className='mpStatus';
+    hint.textContent=chosen?.is_active===false
+      ?'עובד לא פעיל: ניתן להעלות מסמכים לארכיון שלו. החשבון נשאר לא פעיל וללא גישה לפורטל.'
+      :chosen?'המסמך יישמר בארכיון הפרטי של '+chosen.full_name+'.'
+      :'בחר עובד. הרשימה כוללת גם עובדים לא פעילים.';
+  }
+  async function fillSingleStaff(preferredId=''){
+    const select=document.getElementById('mpSingleStaff');
+    if(!select)return;
+    const serial=++mpSingleSelectorSerial;
+    const requested=String(preferredId||mpPreferredStaffId||select.value||'');
     try{
       await getStaff(true);
-      select.innerHTML='<option value="">בחירת עובד</option>'+['פעילים','לא פעילים (מסמכי עבר)'].map((label,index)=>'<optgroup label="'+label+'">'+staff.filter(x=>Boolean(x.is_active)===(index===0)).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+'</option>').join('')+'</optgroup>').join('');
-    }catch(error){console.error('fillSingleStaff',error);document.getElementById('mpSingleStatus').textContent='לא ניתן לטעון עובדים; לא בוצעה העלאה.'}
+      if(serial!==mpSingleSelectorSerial)return;
+      select.innerHTML='<option value="">בחירת עובד</option>'+['פעילים','לא פעילים (ארכיון)'].map((label,index)=>
+        '<optgroup label="'+label+'">'+staff.filter(x=>Boolean(x.is_active)===(index===0))
+        .map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+(x.is_active?'':' · לא פעיל')+'</option>').join('')+'</optgroup>').join('');
+      if(requested&&staff.some(x=>String(x.id)===requested))select.value=requested;
+      if(preferredId&&select.value!==String(preferredId)){
+        const error=document.getElementById('mpSingleStatus');
+        if(error){error.textContent='העובד המבוקש לא נמצא בארכיון. לא בוצעה העלאה.';error.className='mpStatus bad'}
+      }
+      mpPreferredStaffId='';
+      select.onchange=syncSingleStaffStatus;
+      syncSingleStaffStatus();
+    }catch(error){
+      if(serial!==mpSingleSelectorSerial)return;
+      console.error('load all staff for document upload',error);
+      const status=document.getElementById('mpSingleStatus');
+      if(status){status.textContent='טעינת רשימת העובדים נכשלה. לא בוצעה העלאה.';status.className='mpStatus bad'}
+    }
   }
+  window.matokOpenStaffDocumentUpload=async function(staffId){
+    if(!isAdmin())return;
+    const employeeId=String(staffId||'');
+    if(!employeeId)return;
+    mpPreferredStaffId=employeeId;
+    initPayrollAdminFinal();
+    document.querySelector('.adminTabs [data-target="payrollFinal"]')?.click();
+    document.querySelector('#payrollFinal .mpNav [data-mp="single"]')?.click();
+    await fillSingleStaff(employeeId);
+    if(document.getElementById('mpSingleStaff')?.value===employeeId){
+      document.getElementById('mpSingleStaffStatus')?.scrollIntoView({block:'center',behavior:'smooth'});
+    }
+  };
+
   async function saveSinglePdf(){
     if(!isAdmin())return;
-    const staffId=document.getElementById('mpSingleStaff')?.value,type=document.getElementById('mpSingleType')?.value,period=document.getElementById('mpSinglePeriod')?.value,file=document.getElementById('mpSingleFile')?.files?.[0],status=document.getElementById('mpSingleStatus'),btn=document.getElementById('mpSingleSave');
-    if(!staffId||!['payslip','hours'].includes(type)||!period||!file){status.textContent='יש לבחור עובד, סוג מסמך, חודש וקובץ PDF.';status.className='mpStatus bad';return}
-    if(!/\.pdf$/i.test(file.name)||file.size===0||file.size>12*1024*1024){status.textContent='אפשר להעלות PDF תקין עד 12MB בלבד.';status.className='mpStatus bad';return}
-    if(!confirm('לשמור את '+(type==='payslip'?'תלוש השכר':'דוח השעות')+' של '+(staff.find(x=>x.id===staffId)?.full_name||'העובד')+' בארכיון האישי?'))return;
-    btn.disabled=true;status.textContent='מעלה מסמך לארכיון הפרטי…';status.className='mpStatus';
-    const path=staffId+'/'+safe(period)+'/'+type+'-'+crypto.randomUUID()+'.pdf';let uploaded=false;
+    const id=String(document.getElementById('mpSingleStaff')?.value||'');
+    const type=document.getElementById('mpSingleType')?.value;
+    const period=document.getElementById('mpSinglePeriod')?.value;
+    const file=document.getElementById('mpSingleFile')?.files?.[0];
+    const status=document.getElementById('mpSingleStatus');
+    const btn=document.getElementById('mpSingleSave');
+    if(!id||!['payslip','hours'].includes(type)||!period||!file){
+      status.textContent='יש לבחור עובד, סוג מסמך, חודש וקובץ PDF.';
+      status.className='mpStatus bad';return;
+    }
+    if(!/\.pdf$/i.test(file.name)||file.size===0||file.size>12*1024*1024){
+      status.textContent='אפשר להעלות PDF תקין עד 12MB בלבד.';
+      status.className='mpStatus bad';return;
+    }
+    let target=staff.find(x=>String(x.id)===id);
+    if(!target){status.textContent='העובד לא נמצא ברשימת העובדים המעודכנת. רענן ובחר שוב.';status.className='mpStatus bad';return}
+    const inactive=target.is_active===false;
+    const confirmText='לשמור '+(type==='payslip'?'תלוש שכר':'דוח שעות')+' של '+target.full_name+' בארכיון'+(inactive?'? העובד יישאר לא פעיל, ללא גישה לפורטל.':'?');
+    if(!confirm(confirmText))return;
+    btn.disabled=true;
+    let phase='בדיקת הקובץ',uploaded=false,registered=false;
+    const path=id+'/'+safe(period)+'/'+type+'-'+crypto.randomUUID()+'.pdf';
+    const stage=(message)=>{status.className='mpStatus';status.textContent=message};
     try{
-      const bytes=await file.arrayBuffer();await ensurePdf();
-      const pdf=await PDFLib.PDFDocument.load(bytes),pages=pdf.getPageCount();
+      stage('בודק את מסמך ה-PDF…');
+      const bytes=await file.arrayBuffer();
+      await ensurePdf();
+      const pdf=await PDFLib.PDFDocument.load(bytes);
+      const pages=pdf.getPageCount();
       if(!pages)throw new Error('המסמך אינו כולל עמודים');
-      const up=await supabaseClient.storage.from('employee-documents').upload(path,new Blob([bytes],{type:'application/pdf'}),{contentType:'application/pdf',upsert:false});
-      if(up.error)throw up.error;uploaded=true;
-      const reg=await supabaseClient.rpc('admin_register_employee_document',{p_staff_id:staffId,p_doc_type:type,p_period_label:period,p_storage_path:path,p_original_file_name:file.name,p_page_from:1,p_page_to:pages,p_retention_days:3650});
+      // Retain the inactive staff id rather than changing their status or granting login.
+      phase='אחסון הקובץ';
+      stage('מעלה קובץ לאחסון הפרטי…');
+      const upload=await supabaseClient.storage.from('employee-documents')
+        .upload(path,new Blob([bytes],{type:'application/pdf'}),{contentType:'application/pdf',upsert:false});
+      if(upload.error)throw upload.error;
+      uploaded=true;
+      phase='רישום המסמך לעובד';
+      stage('משייך את המסמך לעובד בארכיון…');
+      const reg=await supabaseClient.rpc('admin_register_employee_document',{
+        p_staff_id:id,p_doc_type:type,p_period_label:period,p_storage_path:path,
+        p_original_file_name:file.name,p_page_from:1,p_page_to:pages,p_retention_days:3650
+      });
       if(reg.error)throw reg.error;
-      status.className='mpStatus good';status.textContent='נשמר בהצלחה. המסמך יופיע לעובד באזור האישי תחת הנתונים שלי.';
-      document.getElementById('mpSingleFile').value='';await loadDash();
+      registered=true;
+      phase='אימות הרישום';
+      stage('בודק שהמסמך אכן מופיע בארכיון…');
+      const check=await supabaseClient.rpc('admin_list_employee_documents_v2',{p_period:period});
+      if(check.error)throw check.error;
+      const verified=(check.data||[]).some(row=>String(row.staff_id)===id&&row.storage_path===path);
+      if(!verified)throw new Error('המסמך טרם אותר ברשימת הארכיון. אין להעלות שוב לפני בדיקה.');
+      status.className='mpStatus good';
+      status.textContent=inactive
+        ?'המסמך נשמר ואומת בארכיון של העובד הלא פעיל. החשבון לא הופעל והגישה לפורטל נשארת חסומה.'
+        :'המסמך נשמר ואומת בארכיון הפרטי של העובד.';
+      document.getElementById('mpSingleFile').value='';
+      await loadDash();
     }catch(error){
-      console.error('saveSinglePdf',error);
-      if(uploaded)await supabaseClient.storage.from('employee-documents').remove([path]);
-      status.className='mpStatus bad';status.textContent='ההעלאה נכשלה, לא בוצעה מסירה. '+(error?.message||'');
+      console.error('employee document upload: '+phase,error);
+      status.className='mpStatus bad';
+      if(registered){
+        // A successful registry RPC must never be undone after a readback failure.
+        status.textContent='רישום המסמך התקבל, אך אימות הארכיון לא הושלם. הקובץ לא נמחק. בדוק את הארכיון לפני ניסיון חוזר. שלב: '+phase+'.';
+      }else{
+        if(uploaded){
+          const cleanup=await supabaseClient.storage.from('employee-documents').remove([path]);
+          if(cleanup.error)console.error('orphan document cleanup',cleanup.error);
+        }
+        status.textContent='העלאת המסמך לא הושלמה בשלב: '+phase+'. '+
+          (inactive&&phase==='רישום המסמך לעובד'?'ייתכן שהשרת חוסם רישום לעובד לא פעיל; נדרשת בדיקת הרשאות. ': '')+
+          (error?.message||'')+' לא בוצעה מסירה.';
+      }
     }finally{btn.disabled=false}
   }
+
   function printPayrollPolicy(){
     if(!isAdmin())return;const body=document.getElementById('mpPolicyText')?.innerHTML;if(!body)return;
     const w=window.open('','_blank');if(!w){toast?.('יש לאפשר חלון הדפסה בדפדפן');return}
@@ -254,7 +379,7 @@
       if(key&&payrollBootKey!==key){
         payrollBootKey=key;
         loadEmployeeDocumentsFinal();
-        loadEmployeePayrollFinal();
+        mcLoadEmployeePayrollV2();
       }
       return true;
     }
@@ -267,10 +392,10 @@
     const hours=document.getElementById('hours');
     if(hours?.classList.contains('active')){
       loadEmployeeDocumentsFinal();
-      loadEmployeePayrollFinal();
+      mcLoadEmployeePayrollV2();
     }
   });
-  window.initPayrollAdminFinal=initPayrollAdminFinal;window.loadEmployeeDocumentsFinal=loadEmployeeDocumentsFinal;window.loadEmployeePayrollFinal=loadEmployeePayrollFinal;
+  window.initPayrollAdminFinal=initPayrollAdminFinal;window.loadEmployeeDocumentsFinal=loadEmployeeDocumentsFinal;window.loadEmployeePayrollFinal=mcLoadEmployeePayrollV2;
 
   // MATOK_BONUS_FORMULA_V1
   const mcBonusLabel=m=>({manual:'הזנה ידנית',hourly:'לפי שעות × תעריף',sales_above_target_pct:'אחוז מהמכירות מעל היעד',target_fixed:'סכום קבוע בעמידה ביעד'}[m]||'הזנה ידנית');
@@ -314,12 +439,35 @@
     const r=await supabaseClient.rpc('admin_list_payroll_hours_v2',{p_period:period});if(r.error)return;
     const rows=r.data||[];box.innerHTML='<table><thead><tr><th>עובד</th><th>רגילות</th><th>נוספות</th><th>שבת/חג</th><th>בונוס</th><th>אופן חישוב</th><th>אומדן בסיס</th></tr></thead><tbody>'+rows.map(x=>'<tr><td><b>'+esc(x.full_name)+'</b></td><td>'+x.regular_hours+'</td><td>'+x.overtime_hours+'</td><td>'+x.holiday_hours+'</td><td>₪'+Number(x.bonus_amount||0).toFixed(2)+'</td><td>'+esc(mcBonusLabel(x.bonus_method))+'<div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></td><td>₪'+Number(x.estimated_base||0).toFixed(2)+'</td></tr>').join('')+'</tbody></table>';
   }
+  let mcPayrollRequestNumber=0;
   async function mcLoadEmployeePayrollV2(){
-    const box=document.getElementById('mfEmployeePayroll');if(!box||appSession?.type!=='employee')return;box.innerHTML='<small>טוען…</small>';
-    const r=await supabaseClient.rpc('employee_list_payroll_hours_v2',{p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code});
-    if(r.error){box.innerHTML='<div class="mfEmpty">טעינת הנתונים נכשלה.</div>';return}
-    const rows=r.data||[];box.innerHTML=rows.length?rows.map(x=>'<div class="mpWorkerRow"><b>'+esc(x.period_label)+'</b>'+(x.attendance_enabled?'<div class="mpWorkerFacts"><span>רגילות: '+(x.regular_hours??'—')+'</span><span>נוספות: '+(x.overtime_hours??'—')+'</span><span>שבת/חג: '+(x.holiday_hours??'—')+'</span></div>':'<div class="mfEmpty">הצפייה בשעות הנוכחות סגורה כרגע על ידי המנהל.</div>')+(x.bonuses_enabled?'<div class="mcBonusFormula"><b>בונוס: ₪'+Number(x.bonus_amount||0).toFixed(2)+'</b><div>'+esc(mcBonusLabel(x.bonus_method))+'</div><div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></div>':'<div class="mfEmpty">הצפייה בבונוסים סגורה כרגע על ידי המנהל.</div>')+(x.manager_note?'<small>'+esc(x.manager_note)+'</small>':'')+'</div>').join(''):'<div class="mfEmpty">אין כרגע נתונים זמינים לצפייה.</div>';
+    const box=document.getElementById('mfEmployeePayroll');
+    if(!box||appSession?.type!=='employee')return;
+    const request=++mcPayrollRequestNumber;
+    box.innerHTML='<small>טוען את הנתונים האישיים…</small>';
+    try{
+      const r=await supabaseClient.rpc('employee_list_payroll_hours_v2',{
+        p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code
+      });
+      if(request!==mcPayrollRequestNumber||appSession?.type!=='employee')return;
+      if(r.error)throw r.error;
+      const rows=Array.isArray(r.data)?r.data:[];
+      box.innerHTML=rows.length?rows.map(x=>'<div class="mpWorkerRow"><b>'+esc(x.period_label)+'</b>'+
+        (x.attendance_enabled?'<div class="mpWorkerFacts"><span>רגילות: '+esc(x.regular_hours??'—')+'</span><span>נוספות: '+esc(x.overtime_hours??'—')+'</span><span>שבת/חג: '+esc(x.holiday_hours??'—')+'</span></div>':'<div class="mfEmpty mcAttendanceBlocked">הצפייה בשעות הנוכחות אינה מאופשרת עבורך כרגע.</div>')+
+        (x.bonuses_enabled?'<div class="mcBonusFormula"><b>בונוס: ₪'+Number(x.bonus_amount||0).toFixed(2)+'</b><div>'+esc(mcBonusLabel(x.bonus_method))+'</div><div class="mcFormulaLine">'+esc(mcBonusFormula(x.bonus_method,x.bonus_details||{}))+'</div></div>':'<div class="mfEmpty mcBonusBlocked">הצפייה בבונוסים אינה מאופשרת עבורך כרגע. ניתן לפנות למנהל.</div>')+
+        (x.manager_note?'<small>'+esc(x.manager_note)+'</small>':'')+'</div>').join(''):'<div class="mfEmpty">אין כרגע נתוני שכר או בונוסים שנשמרו עבורך.</div>';
+      // The bonus/attendance screen might have opened before the async response.
+      // Reapply its display mode only after fresh, personal data is in the DOM.
+      const mode=document.getElementById('worker')?.dataset.mfSimpleMode||'';
+      window.matokApplyEmployeeSimpleMode?.(mode);
+    }catch(error){
+      if(request!==mcPayrollRequestNumber)return;
+      console.error('employee payroll loading',error);
+      box.innerHTML='<div class="mfEmpty"><b>לא ניתן לטעון כרגע את נתוני השעות והבונוסים.</b><p>לא בוצע שינוי בהרשאות או בנתונים שלך.</p><button type="button" class="btn secondary" id="mcPayrollRetry">ניסיון נוסף</button></div>';
+      document.getElementById('mcPayrollRetry').onclick=mcLoadEmployeePayrollV2;
+    }
   }
+
   function mcPayrollEnforce(){
     if(appSession?.type==='admin'){
       mcEnsureBonusUi();

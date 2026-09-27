@@ -13,7 +13,9 @@ const MODULES=[
   'matok-realtime-final-v1.js',
   'matok-admin-tools-final-v1.js',
   'matok-manager-home-final-v1.js',
-  'matok-availability-roster-final-v1.js'
+  'matok-availability-roster-final-v1.js',
+  'matok-navigation-final-v1.js',
+  'matok-onboarding-final-v1.js'
 ];
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
@@ -205,8 +207,21 @@ for(const required of [
   'mfPrintScheduleBtn','mfEditHistoryModal','mfManagerWeeks','mfOpenCurrentWeek','settingsRows','supplies',
   'mfFinalEmployeeInit','mfFinalAdminInit','mpSingleSave','mpPrintPolicy','mfOpenPayrollAttendancePdf','mfOpenPayrollArchive','employee_get_schedule_notice','employee_mark_schedule_viewed','mfScheduleNotice',
   'admin_get_week_availability_roster','mfRosterEmployee','MATOK_BATCH_ASSIGN_V1',
-  'mfPublishedAvailabilityHidden','mfEmployeeLoginHelp','payrollBootKey','פתח הבא ב-WhatsApp'
+  'mfPublishedAvailabilityHidden','mfEmployeeLoginHelp','payrollBootKey','פתח הבא ב-WhatsApp','matokRefreshBackNavigation','admin_create_onboarding_invite','admin_list_onboarding_records','matokOpenOnboardingProfile'
 ])if(!html.includes(required))throw new Error(`production build missing required capability or shell dependency: ${required}`);
+
+// The public form uses only the existing, explicitly publishable client key.
+const urlMatch=html.match(/const SUPABASE_URL='([^']+)'/);
+const keyMatch=html.match(/const SUPABASE_KEY='([^']+)'/);
+if(!urlMatch||!keyMatch||!keyMatch[1].startsWith('sb_publishable_')){
+  throw new Error('public onboarding form requires existing publishable client configuration');
+}
+let join=await readFile('join.html','utf8');
+join=join.replace('%%SUPABASE_URL%%',JSON.stringify(urlMatch[1]))
+         .replace('%%SUPABASE_KEY%%',JSON.stringify(keyMatch[1]));
+if(join.includes('%%SUPABASE_'))throw new Error('incomplete onboarding public config');
+await writeFile('dist/join.html',join,'utf8');
+await copyFile('join-client.js','dist/join-client.js');
 
 await writeFile('dist/index.html',html,'utf8');
 await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,generatedAt:new Date().toISOString()},null,2,'utf8'));

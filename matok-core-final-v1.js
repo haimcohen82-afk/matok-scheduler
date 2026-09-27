@@ -277,7 +277,17 @@
     const btn=document.querySelector('.workerFinishBtn');if(btn){btn.disabled=true;btn.textContent='שומרת…'}
     try{
       const {error}=await supabaseClient.rpc('employee_save_availability',{p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code,p_week_start:workerTargetWeek,p_states:payload,p_note:note});
-      if(error)throw error;toast?.('הזמינות נשלחה למנהל');showEmployeeHome();
+      if(error)throw error;
+      // The server response alone does not prove which values were persisted.
+      // Read back this employee's own submissions before clearing the form.
+      const check=await supabaseClient.rpc('employee_get_availability',{
+        p_staff_id:appSession.user.id,p_username:appSession.username,p_code:appSession.code,p_week_start:workerTargetWeek
+      });
+      if(check.error)throw new Error('availability_verification_failed');
+      const saved=new Map((check.data||[]).map(row=>[row.slot_key,row.status]));
+      if(allowed.some(slot=>saved.get(slot)!==payload[slot]))throw new Error('availability_not_verified');
+      toast?.('הזמינות נשמרה ואומתה בענן');
+      showEmployeeHome();
     }catch(e){console.error('save availability',e);toast?.('שמירת הזמינות נכשלה. נסי שוב.')}
     finally{if(btn){btn.disabled=false;btn.innerHTML='סיימתי — שלחי למנהל<small>סיום ונעילת המשמרות שבחרת</small>'}}
   };
