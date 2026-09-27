@@ -59,7 +59,7 @@
       '<h2 id="intakeTitle">בדיקת קליטת עובד</h2>'+
       '<div class="intakeReview" id="intakeReview"><div><div id="intakeFields" class="intakeFields"></div>'+
       '<div class="intakeModalActions" id="intakeReviewActions"></div></div>'+
-      '<div class="intakeOriginal" id="intakeOriginal"><h3>מסמך המקור · בדיקה לפי צורך</h3><div id="intakeOriginalViewer"></div></div></div></section>';
+      '<div class="intakeOriginal" id="intakeOriginal"><h3>מסמך המקור · בדיקה לפי צורך</h3><div id="intakeOriginalViewer"></div></div></div><div id="intakeFullTextPanel" style="display:none;white-space:pre-wrap;overflow:auto;max-height:260px;background:#f6f5f0;border:1px solid #ddd;padding:10px;border-radius:10px;margin-top:9px"></div></section>';
     document.body.appendChild(m);
     $('intakeClose').onclick=()=>closeModal('matokIntakeModal');
   }
@@ -166,6 +166,19 @@
     btn.textContent='פתיחת קובץ המקור בחלון נפרד';btn.onclick=()=>window.open(url,'_blank','noopener,noreferrer');
     box.appendChild(btn);wrap.classList.add('withOriginal');
   }
+  async function showFullExtractedText(record){
+    if(!record||record.source!=='uploaded_file')return;
+    const panel=$('intakeFullTextPanel');
+    panel.style.display='block';
+    panel.textContent='טוען את הטקסט המלא שנקלט…';
+    try{
+      const res=await supabaseClient.rpc('admin_get_onboarding_text',{p_record_id:record.id});
+      if(res.error)throw res.error;
+      panel.textContent=res.data
+        ?'תמלול מלא של הקובץ (פרטי מנהל בלבד):\n\n'+res.data
+        :'לא נמצא טקסט קריא. יש לפתוח את הקובץ המקורי כדי לבדוק פרטים.';
+    }catch(e){panel.textContent='טעינת הטקסט המלא נכשלה. נסה לפתוח את מסמך המקור.'}
+  }
   async function savePending(){
     if(!active||active.review_status!=='pending')return false;
     const data={...active.details,...selectedData()};
@@ -179,6 +192,7 @@
     active=items.find(x=>String(x.id)===String(id));
     if(!active)return;
     ensureModal();$('intakeReview').classList.remove('withOriginal');
+    $('intakeFullTextPanel').style.display='none';$('intakeFullTextPanel').textContent='';
     $('intakeOriginalViewer').textContent='';
     $('intakeTitle').textContent=(active.review_status==='approved'?'כרטיס קליטה':'בדיקת קליטה')+
       ' · '+String(active.details?.full_name||'ללא שם');
@@ -190,6 +204,7 @@
       const b=document.createElement('button');b.type='button';b.className='btn '+kind;b.textContent=text;b.onclick=fn;actions.appendChild(b);return b;
     };
     if(active.original_path)add('הצגת מקור לבדיקה',()=>openSource(active));
+    if(active.source==='uploaded_file')add('הצגת הטקסט המלא שחולץ',()=>showFullExtractedText(active));
     if(editing){
       add('שמירת תיקוני פענוח',async()=>{try{await savePending()}catch(e){feedback('שמירת התיקונים נכשלה.',true)}},'secondary');
       add('קליטת עובד חדש',()=>openCreateApproval(),'primary');
@@ -269,6 +284,7 @@
     if(!isAdmin())return;
     const linked=items.filter(x=>String(x.staff_id)===String(staffId)&&x.review_status==='approved');
     ensureModal();active=null;$('intakeReview').classList.remove('withOriginal');
+    $('intakeFullTextPanel').style.display='none';$('intakeFullTextPanel').textContent='';
     $('intakeTitle').textContent='כל פרטי הקליטה של העובד';
     $('intakeFields').innerHTML=linked.length?linked.map(item=>
       '<div class="intakeCard"><b>'+safe(item.source==='questionnaire'?'שאלון עובד':'קובץ קליטה')+
@@ -276,9 +292,10 @@
       KEYS.filter(([key])=>item.details?.[key]).map(([key,label])=>
         '<div class="intakeDetail"><b>'+safe(label)+':</b> '+safe(
         typeof item.details[key]==='object'?JSON.stringify(item.details[key]):item.details[key])+'</div>').join('')+
-      (item.original_path?'<button class="btn secondary" type="button" data-intake-doc="'+safe(item.id)+'">פתח מסמך מקורי</button>':'')+
+      (item.original_path?'<button class="btn secondary" type="button" data-intake-doc="'+safe(item.id)+'">פתח מסמך מקורי</button><button class="btn secondary" type="button" data-intake-text="'+safe(item.id)+'">הצג את כל הטקסט שנקלט</button>':'')+
       '</div>').join(''):'<p>אין עדיין שאלון או קובץ קליטה המשויך לעובד הזה.</p>';
     $('intakeOriginalViewer').textContent='';$('intakeReviewActions').innerHTML='';
+    $('intakeFields').querySelectorAll('[data-intake-text]').forEach(b=>b.onclick=()=>{const rec=linked.find(x=>x.id===b.dataset.intakeText);if(rec)showFullExtractedText(rec)});
     $('intakeFields').querySelectorAll('[data-intake-doc]').forEach(b=>b.onclick=()=>{
       const rec=linked.find(x=>x.id===b.dataset.intakeDoc);if(rec)openSource(rec)
     });
