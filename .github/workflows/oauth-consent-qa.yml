@@ -3,8 +3,11 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'auth/**'
       - 'oauth/consent/**'
       - 'login/**'
+      - 'build.mjs'
+      - 'netlify.toml'
       - '.github/workflows/oauth-consent-qa.yml'
   workflow_dispatch:
 permissions:
@@ -19,14 +22,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -s auth/auth.css
+          test -s auth/supabase.js
           test -s oauth/consent/index.html
+          test -s oauth/consent/app.js
           test -s login/index.html
-          grep -q 'getAuthorizationDetails' oauth/consent/index.html
-          grep -q 'approveAuthorization' oauth/consent/index.html
-          grep -q 'denyAuthorization' oauth/consent/index.html
-          grep -q 'signInWithPassword' login/index.html
-          ! grep -Eiq 'service.role|sk_[A-Za-z0-9]{12,}' oauth/consent/index.html login/index.html
+          test -s login/app.js
+          grep -q 'getAuthorizationDetails' oauth/consent/app.js
+          grep -q 'approveAuthorization' oauth/consent/app.js
+          grep -q 'denyAuthorization' oauth/consent/app.js
+          grep -q 'signInWithPassword' login/app.js
+          grep -q '@supabase/supabase-js@2.117.2/+esm' auth/supabase.js
+          ! grep -Eiq 'service.role|sb_secret_|sk_[A-Za-z0-9]{12,}' auth/supabase.js oauth/consent/app.js login/app.js
           grep -q 'meta name="robots" content="noindex,nofollow"' oauth/consent/index.html
+          grep -q 'Content-Security-Policy' netlify.toml
+          grep -q 'frame-ancestors' netlify.toml
+          grep -q "'auth/auth.css'" build.mjs
+          grep -q "'oauth/consent/app.js'" build.mjs
       - name: Probe the preview routes (public status only)
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
