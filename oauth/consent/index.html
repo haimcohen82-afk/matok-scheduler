@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>MATOK — אישור חיבור מאובטח</title>
+    <link rel="stylesheet" href="/auth/auth.css" />
+  </head>
+  <body>
+    <main>
+      <h1>MATOK BASIC</h1>
+      <div class="stripes" aria-hidden="true">
+        <span class="stripe-coral"></span>
+        <span class="stripe-teal"></span>
+        <span class="stripe-green"></span>
+        <span class="stripe-blue"></span>
+        <span class="stripe-yellow"></span>
+      </div>
+      <h2>אישור גישה למערכת</h2>
+      <p>לפני אישור החיבור, בדוק את שם היישום ואת ההרשאות המבוקשות. אישור החיבור אינו מפרסם פוסטים.</p>
+      <p id="status" role="status" aria-live="polite">בודק בקשת חיבור וחשבון...</p>
+      <section id="details" class="info" aria-label="פרטי בקשת החיבור" hidden>
+        <div>יישום: <strong id="client"></strong></div>
+        <div>כתובת חזרה: <span id="return-url" class="meta" dir="ltr"></span></div>
+        <div>הרשאות מבוקשות: <span id="scopes"></span></div>
+      </section>
+      <div class="actions">
+        <button id="approve" class="primary" type="button" disabled>אני מאשר/ת</button>
+        <button id="deny" class="secondary" type="button" disabled>דחייה</button>
+      </div>
+      <p id="error" class="error" role="alert"></p>
+      <small>לגישה למידע עסקי נדרש גם אימות בעל החשבון בשרת MATOK.</small>
+    </main>
+    <script type="module" src="/oauth/consent/app.js"></script>
+  </body>
+</html>

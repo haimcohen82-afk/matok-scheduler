@@ -1,5 +1,5 @@
 import { readFile, writeFile, copyFile, mkdir, rm } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { basename, dirname } from 'node:path';
 
 const SOURCE_SHELL='app-shell.html';
 const MODULES=[
@@ -217,6 +217,19 @@ await writeFile('dist/index.html',html,'utf8');
 await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,generatedAt:new Date().toISOString()},null,2,'utf8'));
 for(const asset of ['manifest.webmanifest','favicon.svg','onboarding.html']){
   await copyFile(asset,`dist/${asset}`);
+}
+// Publish only the isolated MATOK OAuth UI assets alongside the existing app.
+for (const asset of [
+  'auth/auth.css',
+  'auth/supabase.js',
+  'oauth/consent/index.html',
+  'oauth/consent/app.js',
+  'login/index.html',
+  'login/app.js'
+]) {
+  const destination=`dist/${asset}`;
+  await mkdir(dirname(destination),{recursive:true});
+  await copyFile(asset,destination);
 }
 console.log(`MATOK build complete: ${buildId}`);
 console.log(`Output: dist/index.html (${Buffer.byteLength(html)} bytes)`);

@@ -1,0 +1,105 @@
+name: MATOK OAuth consent preview verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'auth/**'
+      - 'oauth/consent/**'
+      - 'login/**'
+      - 'build.mjs'
+      - 'netlify.toml'
+      - '.github/workflows/oauth-consent-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  consent-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify isolated consent source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s auth/auth.css
+          test -s auth/supabase.js
+          test -s oauth/consent/index.html
+          test -s oauth/consent/app.js
+          test -s login/index.html
+          test -s login/app.js
+          grep -q 'getAuthorizationDetails' oauth/consent/app.js
+          grep -q 'approveAuthorization' oauth/consent/app.js
+          grep -q 'denyAuthorization' oauth/consent/app.js
+          grep -q 'signInWithPassword' login/app.js
+          grep -q '@supabase/supabase-js@2.117.2/+esm' auth/supabase.js
+          ! grep -Eiq 'service.role|sb_secret_|sk_[A-Za-z0-9]{12,}' auth/supabase.js oauth/consent/app.js login/app.js
+          grep -q 'meta name="robots" content="noindex,nofollow"' oauth/consent/index.html
+          grep -q 'Content-Security-Policy' netlify.toml
+          grep -q 'frame-ancestors' netlify.toml
+          grep -q "'auth/auth.css'" build.mjs
+          grep -q "'oauth/consent/app.js'" build.mjs
+      - name: Probe the preview routes (public status only)
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No pull request number; static checks passed"; exit 0
+          fi
+          domain="deploy-preview-${PR_NUMBER}--voluble-marigold-95c410.netlify.app"
+          echo "Preview diagnostic: root and direct file"
+          for path in / /oauth/consent/index.html /login/index.html; do
+            curl -sS -L --max-time 15 -o /tmp/diagnostic -w "GET $path => %{http_code} url=%{url_effective}\\n" "https://${domain}${path}" || true
+            head -c 120 /tmp/diagnostic 2>/dev/null || true; echo
+          done
+          for i in $(seq 1 2); do
+            failed=0
+            for path in oauth/consent/ login/; do
+              status=$(curl -sS -L --max-time 15 -o /tmp/page -w '%{http_code}' "https://${domain}/${path}" || true)
+              if [ "${status}" != "200" ] || ! grep -q 'MATOK' /tmp/page; then failed=1; fi
+              printf '%s %s => %s\n' "${domain}" "${path}" "${status}"
+            done
+            if [ "${failed}" = "0" ]; then exit 0; fi
+            sleep 8
+          done
+          echo "Preview paths were not HTTP 200 after retries" >&2; exit 1
+
+      - name: Check Supabase OAuth public discovery without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://hotfvqqzahakumwadtiy.supabase.co/.well-known/oauth-authorization-server/auth/v1"
+          status=$(curl -sS --max-time 15 -o /tmp/oauth-discovery -w '%{http_code}' "$endpoint" || true)
+          echo "Supabase OAuth discovery HTTP status: $status"
+          if [ "$status" != "200" ]; then
+            echo "OAuth discovery not yet enabled or unavailable" >&2
+            exit 1
+          fi
+          node -e 'const fs=require("fs");const d=JSON.parse(fs.readFileSync("/tmp/oauth-discovery","utf8"));if(!d.authorization_endpoint||!d.token_endpoint) process.exit(1);console.log("OAuth discovery endpoints present; no credentials accessed")'
+      - name: Probe read-only MCP response without a token
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://hotfvqqzahakumwadtiy.supabase.co/functions/v1/matok-meta-mcp"
+          status=$(curl -sS --max-time 20 -o /tmp/mcp-anon -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' "$endpoint" || true)
+          echo "Anonymous MCP status: $status"
+          if [ "$status" != "401" ] && [ "$status" != "403" ] && [ "$status" != "503" ]; then
+            echo "MCP auth gate unexpected response; no credentials involved" >&2
+            exit 1
+          fi
+          node -e 'let a=require("fs").readFileSync("/tmp/mcp-anon","utf8");let x=JSON.parse(a);if(!x.error)process.exit(1);console.log("Unauthenticated MCP request safely refused")'
+
+      - name: Read public MATOK backend configuration flags only
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://hotfvqqzahakumwadtiy.supabase.co/functions/v1/matok-meta-backend/health"
+          status=$(curl -sS --max-time 15 -o /tmp/backend-health -w '%{http_code}' "$url" || true)
+          echo "Backend health HTTP status: $status"
+          if [ "$status" != "200" ]; then exit 1; fi
+          node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/backend-health","utf8"));console.log("Backend alive:",d.ok===true,"Meta settings provided:",d.meta_configured===true,"Backend key configured:",d.api_key_configured===true);if(d.ok!==true)process.exit(1)'

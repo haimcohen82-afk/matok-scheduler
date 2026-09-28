@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>MATOK — כניסה מאובטחת</title>
+    <link rel="stylesheet" href="/auth/auth.css" />
+  </head>
+  <body>
+    <main class="login-card">
+      <h1>MATOK BASIC</h1>
+      <div class="stripes" aria-hidden="true">
+        <span class="stripe-coral"></span>
+        <span class="stripe-teal"></span>
+        <span class="stripe-green"></span>
+        <span class="stripe-blue"></span>
+        <span class="stripe-yellow"></span>
+      </div>
+      <h2>כניסה לאישור חיבור</h2>
+      <p>התחבר לחשבון משתמש קיים ב־MATOK Supabase Auth. אין להקליד כאן סיסמת לוח הבקרה של Supabase אם היא שונה.</p>
+      <form id="login">
+        <label for="email">דואר אלקטרוני</label>
+        <input id="email" type="email" required autocomplete="username" inputmode="email" />
+        <label for="password">סיסמה</label>
+        <input id="password" type="password" required autocomplete="current-password" />
+        <button id="submit" class="primary full-width" type="submit">כניסה</button>
+      </form>
+      <p id="error" class="error" role="alert"></p>
+    </main>
+    <script type="module" src="/login/app.js"></script>
+  </body>
+</html>
