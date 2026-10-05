@@ -399,7 +399,7 @@
     full_name:['שם מלא','שם העובד','שם עובד','עובד','שם פרטי ומשפחה','full name','employee name','name'],
     first_name:['שם פרטי','פרטי','first name','firstname'],
     last_name:['שם משפחה','משפחה','last name','lastname','surname'],
-    identity_number:['תעודת זהות','תז','מספר זהות','מס תז','תעודה מזהה','מספר תעודה','id number','identity number','identity','id'],
+    identity_number:['תעודת זהות','תז','ת ז','מספר זהות','מס תז','מס ת ז','תעודה מזהה','מספר תעודה','id number','identity number','identity','id'],
     phone:['טלפון','טלפון נייד','נייד','פלאפון','מספר טלפון','phone','mobile','cellphone'],
     email:['דואל','אימייל','מייל','email','e mail'],
     city:['עיר','יישוב','ישוב','מקום מגורים','עיר מגורים','city','town'],
