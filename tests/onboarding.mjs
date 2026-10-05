@@ -3,10 +3,10 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 
-const [manager,publicJs,join,schema,build,shell,dist,distJoin]=await Promise.all([
+const [manager,publicJs,join,schema,structuredSchema,build,shell,dist,distJoin]=await Promise.all([
  'matok-onboarding-final-v1.js','join-client.js','join.html',
- 'sql/onboarding-private-intake.sql','build.mjs','app-shell.html',
- 'dist/index.html','dist/join.html'
+ 'sql/onboarding-private-intake.sql','sql/onboarding-structured-import.sql',
+ 'build.mjs','app-shell.html','dist/index.html','dist/join.html'
 ].map(p=>readFile(p,'utf8')));
 
 // The candidate's personal link is on a standalone public page, not in the manager portal.
@@ -39,27 +39,60 @@ assert(manager.includes('if(active.original_path)add('));
 assert(manager.includes('admin_approve_onboarding_new'));
 assert(manager.includes('admin_link_onboarding_existing'));
 assert(manager.includes('admin_import_onboarding_file'));
+assert(manager.includes('admin_import_onboarding_batch'));
+assert(manager.includes('admin_get_staff_private_profile'));
 assert(manager.includes('admin_get_onboarding_text'));
+assert(structuredSchema.includes('create table if not exists public.staff_private_profiles'));
+assert(structuredSchema.includes('alter table public.staff_private_profiles enable row level security'));
+assert(structuredSchema.includes('admin_import_onboarding_batch'));
+assert(structuredSchema.includes('admin_upsert_staff_private_profile'));
+assert(!structuredSchema.includes('grant execute on function public.admin_get_staff_private_profile(uuid) to anon'));
 assert(manager.includes('showFullExtractedText'));
 assert(schema.includes('grant execute on function public.admin_get_onboarding_text(uuid) to authenticated'));
 assert(!schema.includes('grant execute on function public.admin_get_onboarding_text(uuid) to anon'));
 
 assert(manager.includes('window.matokOnboardingParseText=parseText'));
 
-// Test Hebrew field extraction including confidence and sensitive-document restraint.
+// Test Hebrew labeled fields, Israeli identity validation and spreadsheet/hour-summary tables.
 {
   const ctx={window:{},document:{documentElement:{},readyState:'loading',addEventListener(){}},
     MutationObserver:class{observe(){}},console};
   vm.runInNewContext(manager,ctx);
   const parse=ctx.window.matokOnboardingParseText;
+  const parseRows=ctx.window.matokOnboardingParseRows;
+  const validId=ctx.window.matokValidateIsraeliId;
   assert.equal(typeof parse,'function');
-  const data=parse('שם מלא: נועה כהן\nטלפון: 050-1234567\nדוא"ל: test@example.org\nכתובת: רחוב לדוגמה 3\nתפקיד: מכירה\nמיומנות מיוחדת: שירות\nתעודת זהות: 123456789');
-  assert.equal(data.details.full_name,'נועה כהן');
-  assert.equal(data.details.phone,'050-1234567');
-  assert.equal(data.confidence.full_name,'high');
-  assert.equal(data.confidence.phone,'high');
-  assert(data.details.extra_fields.includes('מיומנות מיוחדת'));
-  assert(!data.details.extra_fields.includes('123456789'),'identity number must not enter parsed extra fields');
+  assert.equal(typeof parseRows,'function');
+  assert.equal(validId('123456782'),true);
+
+  const labeled=parse('שם מלא: נועה כהן\nתעודת זהות: 123456782\nטלפון: 050-1234567\nדוא"ל: test@example.org\nעיר: חולון\nכתובת: רחוב לדוגמה 3\nתפקיד: מכירה\nמיומנות מיוחדת: שירות');
+  assert.equal(labeled.details.full_name,'נועה כהן');
+  assert.equal(labeled.details.identity_number,'123456782');
+  assert.equal(labeled.details.identity_valid,true);
+  assert.equal(labeled.details.phone,'050-1234567');
+  assert.equal(labeled.details.city,'חולון');
+  assert.equal(labeled.confidence.identity_number,'high');
+  assert(labeled.details.extra_fields.includes('מיומנות מיוחדת'));
+
+  const tsv='שם מלא\tת.ז\tטלפון\tעיר\tכתובת\nנועה כהן\t123456782\t0501234567\tחולון\tדב הוז 1\nדנה לוי\t111111118\t0527654321\tבת ים\tבלפור 2';
+  const rows=parseRows(tsv);
+  assert.equal(rows.length,2,'two spreadsheet employees should create two intake rows');
+  assert.equal(rows[0].details.full_name,'נועה כהן');
+  assert.equal(rows[0].details.identity_number,'123456782');
+  assert.equal(rows[0].details.city,'חולון');
+  assert.equal(rows[1].details.phone,'0527654321');
+
+  const csv='שם פרטי,שם משפחה,מספר זהות,טלפון,עיר\nיעל,כהן,123456782,0541234567,ראשון לציון';
+  const csvRows=parseRows(csv);
+  assert.equal(csvRows.length,1);
+  assert.equal(csvRows[0].details.full_name,'יעל כהן');
+  assert.equal(csvRows[0].details.first_name,'יעל');
+  assert.equal(csvRows[0].details.last_name,'כהן');
+  assert.equal(csvRows[0].details.city,'ראשון לציון');
+
+  const invalid=parse('שם מלא: ישראל ישראלי\nתעודת זהות: 123456789\nטלפון: 0501234567');
+  assert.equal(invalid.details.identity_valid,false);
+  assert.equal(invalid.confidence.identity_number,'low');
   assert.equal(parse('טלפון: 0501234567').confidence.full_name,'low');
 }
 
