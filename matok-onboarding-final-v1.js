@@ -294,10 +294,27 @@
   async function showStaffProfile(staffId){
     if(!isAdmin())return;
     const linked=items.filter(x=>String(x.staff_id)===String(staffId)&&x.review_status==='approved');
+    let privateProfile={};
+    try{
+      const profile=await supabaseClient.rpc('admin_get_staff_private_profile',{p_staff_id:staffId});
+      if(!profile.error)privateProfile=profile.data||{};
+    }catch(e){console.warn('private staff profile',e)}
     ensureModal();active=null;$('intakeReview').classList.remove('withOriginal');
     $('intakeFullTextPanel').style.display='none';$('intakeFullTextPanel').textContent='';
-    $('intakeTitle').textContent='כל פרטי הקליטה של העובד';
-    $('intakeFields').innerHTML=linked.length?linked.map(item=>
+    $('intakeTitle').textContent='כל פרטי העובד · מנהל בלבד';
+    const labels={
+      first_name:'שם פרטי',last_name:'שם משפחה',identity_type:'סוג תעודה',
+      identity_number:'תעודה מזהה',email:'דוא״ל',city:'עיר / יישוב',
+      address:'כתובת',birth_date:'תאריך לידה',preferred_start:'תאריך התחלה'
+    };
+    const profileRows=Object.entries(labels).filter(([key])=>privateProfile?.[key]).map(([key,label])=>{
+      const suffix=key==='identity_number'&&privateProfile.identity_valid===false
+        ?' <small>· דורש אימות מול המקור</small>':'';
+      return '<div class="intakeDetail"><b>'+safe(label)+':</b> '+safe(privateProfile[key])+suffix+'</div>';
+    }).join('');
+    const profileCard='<div class="intakeCard"><b>פרטי עובד מרוכזים</b><small> · פרטי מנהל בלבד</small>'+
+      (profileRows||'<p>טרם נשמר פרופיל פרטי מרוכז לעובד זה.</p>')+'</div>';
+    const history=linked.length?linked.map(item=>
       '<div class="intakeCard"><b>'+safe(item.source==='questionnaire'?'שאלון עובד':'קובץ קליטה')+
       '</b><small> · '+safe(new Date(item.created_at).toLocaleDateString('he-IL'))+'</small>'+
       KEYS.filter(([key])=>item.details?.[key]).map(([key,label])=>
@@ -305,13 +322,17 @@
         typeof item.details[key]==='object'?JSON.stringify(item.details[key]):item.details[key])+'</div>').join('')+
       (item.original_path?'<button class="btn secondary" type="button" data-intake-doc="'+safe(item.id)+'">פתח מסמך מקורי</button><button class="btn secondary" type="button" data-intake-text="'+safe(item.id)+'">הצג את כל הטקסט שנקלט</button>':'')+
       '</div>').join(''):'<p>אין עדיין שאלון או קובץ קליטה המשויך לעובד הזה.</p>';
+    $('intakeFields').innerHTML=profileCard+'<h3>היסטוריית קליטה ומקורות</h3>'+history;
     $('intakeOriginalViewer').textContent='';$('intakeReviewActions').innerHTML='';
-    $('intakeFields').querySelectorAll('[data-intake-text]').forEach(b=>b.onclick=()=>{const rec=linked.find(x=>x.id===b.dataset.intakeText);if(rec)showFullExtractedText(rec)});
+    $('intakeFields').querySelectorAll('[data-intake-text]').forEach(b=>b.onclick=()=>{
+      const rec=linked.find(x=>x.id===b.dataset.intakeText);if(rec)showFullExtractedText(rec)
+    });
     $('intakeFields').querySelectorAll('[data-intake-doc]').forEach(b=>b.onclick=()=>{
       const rec=linked.find(x=>x.id===b.dataset.intakeDoc);if(rec)openSource(rec)
     });
     openModal('matokIntakeModal');
   }
+
   async function loadScript(src,globalName){
     if(window[globalName])return;
     await new Promise((resolve,reject)=>{
