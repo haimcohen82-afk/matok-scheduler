@@ -5,9 +5,11 @@
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
   const BUCKET='staff-onboarding-originals';
   const KEYS=[
-    ['full_name','שם מלא'],['phone','טלפון'],['email','דוא״ל'],['city','יישוב'],
-    ['address','כתובת'],['preferred_role','תפקיד'],['available_shifts','משמרות'],
-    ['friday','שישי'],['preferred_start','תאריך התחלה'],['experience','ניסיון'],
+    ['full_name','שם מלא'],['first_name','שם פרטי'],['last_name','שם משפחה'],
+    ['identity_number','תעודה מזהה'],['phone','טלפון'],['email','דוא״ל'],
+    ['city','עיר / יישוב'],['address','כתובת'],['birth_date','תאריך לידה'],
+    ['preferred_role','תפקיד'],['available_shifts','משמרות'],['friday','שישי'],
+    ['preferred_start','תאריך התחלה'],['experience','ניסיון'],
     ['notes','הערות'],['extra_fields','שדות נוספים שזוהו בקובץ']
   ];
   let items=[],active=null,listBusy=false;
@@ -147,9 +149,11 @@
     $('intakeFields').innerHTML=KEYS.map(([key,label])=>{
       let value=data[key]??'';
       if(typeof value==='object')value=JSON.stringify(value,null,2);
-      const doubtful=record.source==='uploaded_file'&&(confidence[key]!=='high'||!value);
+      const invalidIdentity=key==='identity_number'&&value&&data.identity_valid===false;
+      const doubtful=record.source==='uploaded_file'&&(confidence[key]!=='high'||!value||invalidIdentity);
+      const note=invalidIdentity?' · המספר לא עבר בדיקת ת״ז':doubtful?' · לבדיקה מול המקור':'';
       return '<label class="'+(doubtful?'uncertain':'')+'">'+safe(label)+
-        (doubtful?' <small>· לבדיקה מול המקור</small>':'')+
+        (note?' <small>'+safe(note)+'</small>':'')+
         (key==='experience'||key==='notes'||key==='extra_fields'
           ?'<textarea data-intake-key="'+key+'" '+(editable?'':'readonly')+'>'+safe(value)+'</textarea>'
           :'<input data-intake-key="'+key+'" value="'+safe(value)+'" '+(editable?'':'readonly')+'>')+
@@ -323,7 +327,9 @@
     if(suffix==='xlsx'||suffix==='xls'){
       await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','XLSX');
       const wb=XLSX.read(data,{type:'array'});
-      return wb.SheetNames.map(name=>name+'\n'+XLSX.utils.sheet_to_csv(wb.Sheets[name])).join('\n').slice(0,120000);
+      return wb.SheetNames.map(name=>'-- גיליון '+name+' --\n'+
+        XLSX.utils.sheet_to_csv(wb.Sheets[name],{FS:'\t',RS:'\n',blankrows:false}))
+        .join('\n').slice(0,120000);
     }
     if(suffix==='docx'){
       await loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js','mammoth');
@@ -364,30 +370,174 @@
     }
     throw new Error('סוג קובץ לא נתמך');
   }
-  function parseText(text){
+  const normalizeHeader=value=>String(value??'').toLowerCase()
+    .replace(/[\u0591-\u05c7]/g,'').replace(/[״”"']/g,'').replace(/[._/\\()-]/g,' ')
+    .replace(/\s+/g,' ').trim();
+
+  const HEADER_ALIASES={
+    full_name:['שם מלא','שם העובד','שם עובד','עובד','שם פרטי ומשפחה','full name','employee name','name'],
+    first_name:['שם פרטי','פרטי','first name','firstname'],
+    last_name:['שם משפחה','משפחה','last name','lastname','surname'],
+    identity_number:['תעודת זהות','תז','מספר זהות','מס תז','תעודה מזהה','מספר תעודה','id number','identity number','identity','id'],
+    phone:['טלפון','טלפון נייד','נייד','פלאפון','מספר טלפון','phone','mobile','cellphone'],
+    email:['דואל','אימייל','מייל','email','e mail'],
+    city:['עיר','יישוב','ישוב','מקום מגורים','עיר מגורים','city','town'],
+    address:['כתובת','רחוב וכתובת','address','street address'],
+    birth_date:['תאריך לידה','לידה','date of birth','birth date','dob'],
+    preferred_role:['תפקיד','תפקיד מבוקש','תפקיד בעבודה','role','position','job'],
+    available_shifts:['משמרות','זמינות','שעות עבודה','זמינות לעבודה','availability','shifts'],
+    friday:['יום שישי','שישי','friday'],
+    preferred_start:['תאריך התחלה','תחילת עבודה','מועד התחלה','start date','employment start'],
+    experience:['ניסיון','ניסיון תעסוקתי','וותק','experience']
+  };
+  const HEADER_LOOKUP=(()=>{
+    const map=new Map();
+    Object.entries(HEADER_ALIASES).forEach(([key,aliases])=>aliases.forEach(a=>map.set(normalizeHeader(a),key)));
+    return map;
+  })();
+  const headerKey=value=>{
+    const norm=normalizeHeader(value);
+    if(HEADER_LOOKUP.has(norm))return HEADER_LOOKUP.get(norm);
+    for(const [alias,key] of HEADER_LOOKUP){
+      if(norm.length>=3&&(norm===alias||norm.includes(alias)||alias.includes(norm)))return key;
+    }
+    return '';
+  };
+  const cleanIdentity=value=>String(value??'').replace(/[^0-9A-Za-z]/g,'').trim();
+  function validIsraeliId(value){
+    const id=String(value??'').replace(/\D/g,'').padStart(9,'0');
+    if(!/^\d{9}$/.test(id))return false;
+    let sum=0;
+    for(let i=0;i<9;i++){
+      let n=Number(id[i])*(i%2?2:1);
+      if(n>9)n-=9;
+      sum+=n;
+    }
+    return sum%10===0;
+  }
+  function parseDelimitedLine(line,delimiter){
+    const values=[];let current='',quoted=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){
+        if(quoted&&line[i+1]==='"'){current+='"';i++}
+        else quoted=!quoted;
+      }else if(ch===delimiter&&!quoted){values.push(current.trim());current=''}
+      else current+=ch;
+    }
+    values.push(current.trim());
+    return values;
+  }
+  function bestDelimiter(line){
+    const candidates=['\t',';',','];
+    let best='',count=0;
+    for(const d of candidates){
+      const n=parseDelimitedLine(line,d).length;
+      if(n>count){best=d;count=n}
+    }
+    return count>=2?best:'';
+  }
+  function finalizeDetails(details,confidence={}){
+    const d={...details},c={...confidence};
+    if(!d.full_name&&d.first_name){
+      d.full_name=[d.first_name,d.last_name].filter(Boolean).join(' ').trim();
+      if(d.full_name)c.full_name=c.first_name==='high'&&(!d.last_name||c.last_name==='high')?'high':'medium';
+    }
+    if(d.full_name&&(!d.first_name||!d.last_name)){
+      const parts=String(d.full_name).trim().split(/\s+/).filter(Boolean);
+      if(parts.length>=2){
+        if(!d.first_name){d.first_name=parts.shift();c.first_name='medium'}
+        if(!d.last_name){d.last_name=parts.join(' ');c.last_name='medium'}
+      }
+    }
+    if(d.identity_number){
+      const cleaned=cleanIdentity(d.identity_number);
+      d.identity_number=cleaned;
+      d.identity_type=d.identity_type||(/^\d{9}$/.test(cleaned)?'תעודת זהות':'תעודה מזהה');
+      if(/^\d{9}$/.test(cleaned)){
+        d.identity_valid=validIsraeliId(cleaned);
+        c.identity_number=d.identity_valid?'high':'low';
+      }else{
+        d.identity_valid=null;
+        c.identity_number=c.identity_number==='high'?'medium':(c.identity_number||'medium');
+      }
+    }
+    if(d.phone)d.phone=String(d.phone).replace(/[^\d+() -]/g,'').trim();
+    d.notes=d.notes||'קובץ מקור נשמר בארכיון. יש לבדוק רק שדות שסומנו כלא ודאיים.';
+    for(const [key] of KEYS)if(!(key in c))c[key]=d[key]?'medium':'low';
+    return {details:d,confidence:c};
+  }
+  function parseTableRows(src){
+    const lines=String(src||'').replace(/\r/g,'\n').split(/\n/).map(x=>x.trim()).filter(Boolean);
+    const out=[];let headerKeys=null,delimiter='',headerSignature='';
+    for(const line of lines){
+      if(/^-- .* --$/.test(line)){headerKeys=null;delimiter='';continue}
+      const d=bestDelimiter(line);
+      if(d){
+        const cells=parseDelimitedLine(line,d);
+        const mapped=cells.map(headerKey);
+        const meaningful=mapped.filter(Boolean).length;
+        const identity=mapped.some(x=>['full_name','first_name','last_name','identity_number','phone'].includes(x));
+        if(meaningful>=2&&identity){
+          headerKeys=mapped;delimiter=d;headerSignature=mapped.join('|');
+          continue;
+        }
+      }
+      if(!headerKeys||!delimiter)continue;
+      const cells=parseDelimitedLine(line,delimiter);
+      if(cells.filter(Boolean).length<1)continue;
+      const remapped=cells.map(headerKey);
+      if(remapped.filter(Boolean).length>=2&&remapped.join('|')===headerSignature)continue;
+      const details={},confidence={};
+      headerKeys.forEach((key,index)=>{
+        if(!key||!cells[index])return;
+        if(details[key])return;
+        details[key]=cells[index].trim();confidence[key]='high';
+      });
+      const final=finalizeDetails(details,confidence);
+      const d0=final.details;
+      if(d0.full_name||d0.identity_number||d0.phone)out.push(final);
+      if(out.length>=200)break;
+    }
+    const seen=new Set();
+    return out.filter(row=>{
+      const d=row.details||{};
+      const key=[d.identity_number||'',String(d.phone||'').replace(/\D/g,''),normalizeHeader(d.full_name||'')].join('|');
+      if(!key.replace(/\|/g,''))return false;
+      if(seen.has(key))return false;
+      seen.add(key);return true;
+    });
+  }
+  function parseLabeledText(text){
     const src=String(text||'').replace(/\r/g,'\n'),lines=src.split(/\n/).map(x=>x.trim()).filter(Boolean);
     const patterns={
-      full_name:/^(?:שם מלא|שם העובד(?:\/ת)?|שם פרטי ומשפחה|full name|employee name)\s*[:：\-]\s*(.{2,150})$/i,
+      full_name:/^(?:שם מלא|שם העובד(?:\/ת)?|שם עובד|שם פרטי ומשפחה|full name|employee name)\s*[:：\-]\s*(.{2,150})$/i,
+      first_name:/^(?:שם פרטי|first name)\s*[:：\-]\s*(.{1,100})$/i,
+      last_name:/^(?:שם משפחה|last name|surname)\s*[:：\-]\s*(.{1,100})$/i,
+      identity_number:/^(?:תעודת זהות|ת[."׳״']?ז|מספר זהות|תעודה מזהה|מספר תעודה|id number|identity number)\s*[:：\-]\s*([0-9A-Za-z .\-]{5,30})$/i,
       phone:/^(?:טלפון(?: נייד)?|נייד|פלאפון|מספר טלפון|phone|mobile)\s*[:：\-]\s*([+\d\s()\-]{9,22})$/i,
-      email:/^(?:דוא.?ל|אימייל|email|e-mail)\s*[:：\-]\s*(.{3,180})$/i,
-      city:/^(?:עיר|יישוב|מקום מגורים|city)\s*[:：\-]\s*(.{2,100})$/i,
-      address:/^(?:כתובת|address)\s*[:：\-]\s*(.{2,200})$/i,
+      email:/^(?:דוא.?ל|אימייל|מייל|email|e-mail)\s*[:：\-]\s*(.{3,180})$/i,
+      city:/^(?:עיר|יישוב|ישוב|מקום מגורים|עיר מגורים|city)\s*[:：\-]\s*(.{2,100})$/i,
+      address:/^(?:כתובת|address)\s*[:：\-]\s*(.{2,250})$/i,
+      birth_date:/^(?:תאריך לידה|לידה|date of birth|birth date|dob)\s*[:：\-]\s*(.{2,50})$/i,
       preferred_role:/^(?:תפקיד|תפקיד מבוקש|role|position)\s*[:：\-]\s*(.{2,90})$/i,
-      available_shifts:/^(?:משמרות|זמינות|שעות עבודה|availability)\s*[:：\-]\s*(.{2,300})$/i,
+      available_shifts:/^(?:משמרות|זמינות|שעות עבודה|availability|shifts)\s*[:：\-]\s*(.{2,300})$/i,
       friday:/^(?:יום שישי|שישי|friday)\s*[:：\-]\s*(.{2,80})$/i,
-      preferred_start:/^(?:תאריך התחלה|תחילת עבודה|start date)\s*[:：\-]\s*(.{2,50})$/i,
-      experience:/^(?:ניסיון|ניסיון תעסוקתי|experience)\s*[:：\-]\s*(.{2,900})$/i
+      preferred_start:/^(?:תאריך התחלה|תחילת עבודה|מועד התחלה|start date)\s*[:：\-]\s*(.{2,50})$/i,
+      experience:/^(?:ניסיון|ניסיון תעסוקתי|וותק|experience)\s*[:：\-]\s*(.{2,900})$/i
     };
     const details={},confidence={},extra=[];
     for(const line of lines){
       let matched=false;
       for(const [key,pattern] of Object.entries(patterns)){
         const match=line.match(pattern);
-        if(match){if(!details[key]){details[key]=match[1].trim();confidence[key]='high'}matched=true;break}
+        if(match){
+          if(!details[key]){details[key]=match[1].trim();confidence[key]='high'}
+          matched=true;break;
+        }
       }
       if(!matched&&/^[^\n:：]{2,48}\s*[:：]\s*\S/.test(line)){
-        // Do not automatically convert identity, bank or medical identifiers.
-        if(/תעודת זהות|חשבון בנק|סניף בנק|iban|תאריך לידה|מחלה|רפואי/i.test(line))continue;
+        if(/חשבון בנק|סניף בנק|iban|מחלה|רפואי|אבחון/i.test(line))continue;
         extra.push(line.slice(0,280));
       }
     }
@@ -400,10 +550,14 @@
       if(e){details.email=e[0];confidence.email='low'}
     }
     if(extra.length){details.extra_fields=extra.slice(0,45).join('\n');confidence.extra_fields='low'}
-    for(const key of Object.keys(patterns))if(!details[key])confidence[key]='low';
-    details.notes='קובץ מקור נשמר בארכיון. נא לבדוק רק שדות שסומנו כלא ודאיים.';
-    return {details,confidence};
+    return finalizeDetails(details,confidence);
   }
+  function parseEmployeeRows(text){
+    const rows=parseTableRows(text);
+    return rows.length?rows:[parseLabeledText(text)];
+  }
+  function parseText(text){return parseEmployeeRows(text)[0]}
+
   async function importFile(file,input){
     if(!isAdmin()||!file)return;
     if(file.size===0||file.size>12*1024*1024){feedback('הקובץ ריק או גדול מ־12MB.',true);input.value='';return}
@@ -411,14 +565,21 @@
     if(!['pdf','jpg','jpeg','png','webp','docx','xlsx','xls','txt','csv'].includes(suffix)){
       feedback('סוג קובץ אינו נתמך.',true);input.value='';return;
     }
-    feedback('קורא את הקובץ המקורי ומחלץ שדות…');
+    feedback('קורא את הקובץ ומפרק אותו לשדות עובדים…');
     let text='',parseWarning='';
     try{text=await fileText(file)}catch(e){
       parseWarning=String(e?.message||'ניתוח נכשל');
-      feedback('הקובץ יישמר במלואו, אך חילוץ הטקסט לא הושלם: '+parseWarning+' יש לבדוק במקור.',true);
+      feedback('הקובץ יישמר במלואו, אך הפענוח דורש בדיקה מול המקור: '+parseWarning,true);
     }
-    const {details,confidence}=parseText(text);
-    if(parseWarning){details.notes='פענוח לא הושלם: '+parseWarning;confidence.full_name='low';confidence.phone='low'}
+    let rows=parseEmployeeRows(text);
+    if(parseWarning){
+      rows=rows.length?rows:[finalizeDetails({notes:'פענוח לא הושלם: '+parseWarning},{full_name:'low',phone:'low'})];
+      rows.forEach(row=>{
+        row.details.notes='פענוח לא הושלם במלואו: '+parseWarning;
+        row.confidence.full_name=row.confidence.full_name||'low';
+        row.confidence.phone=row.confidence.phone||'low';
+      });
+    }
     const ext=suffix==='jpeg'?'jpg':suffix;
     const path='private/'+crypto.randomUUID()+'.'+ext;
     const mime={pdf:'application/pdf',jpg:'image/jpeg',png:'image/png',webp:'image/webp',
@@ -427,25 +588,44 @@
       xls:'application/vnd.ms-excel',txt:'text/plain',csv:'text/csv'}[ext];
     let uploaded=false;
     try{
-      feedback('שומר קובץ מקורי בארכיון פרטי…');
+      feedback('שומר את קובץ המקור בארכיון פרטי…');
       const up=await supabaseClient.storage.from(BUCKET).upload(path,file,{contentType:mime,upsert:false});
       if(up.error)throw up.error;uploaded=true;
-      const reg=await supabaseClient.rpc('admin_import_onboarding_file',{
-        p_details:details,p_confidence:confidence,p_text:text.slice(0,115000),
-        p_path:path,p_filename:file.name.slice(0,200)
-      });
-      if(reg.error)throw reg.error;
-      feedback('הקובץ נקלט. השדות שזוהו הופיעו לבדיקה ורק מידע לא ודאי דורש התאמה למקור.');
+
+      let ids=[];
+      if(rows.length>1){
+        const reg=await supabaseClient.rpc('admin_import_onboarding_batch',{
+          p_rows:rows,p_text:text.slice(0,115000),p_path:path,p_filename:file.name.slice(0,200)
+        });
+        if(reg.error)throw reg.error;
+        ids=reg.data||[];
+      }else{
+        const row=rows[0]||finalizeDetails({},{});
+        const reg=await supabaseClient.rpc('admin_import_onboarding_file',{
+          p_details:row.details,p_confidence:row.confidence,p_text:text.slice(0,115000),
+          p_path:path,p_filename:file.name.slice(0,200)
+        });
+        if(reg.error)throw reg.error;
+        ids=reg.data?[reg.data]:[];
+      }
+      if(!ids.length)throw new Error('לא נמצאו שורות עובד לשמירה');
+      feedback(ids.length>1
+        ?'הקובץ פורק ל־'+ids.length+' עובדים. כל עובד קיבל רשומת קליטה נפרדת; רק שדות לא ודאיים מסומנים לבדיקה.'
+        :'הקובץ נקלט והפרטים פורקו לשדות. רק מידע לא ודאי מסומן לבדיקה.');
       input.value='';
-      await loadItems();openReview(reg.data);
+      await loadItems();
+      if(ids.length===1)openReview(ids[0]);
     }catch(e){
       console.error('import staff original',e);
       if(uploaded)await supabaseClient.storage.from(BUCKET).remove([path]);
-      feedback('שמירת קובץ הקליטה נכשלה. אין לשייך עובד לפני בדיקה: '+String(e?.message||''),true);
+      feedback('שמירת קובץ הקליטה נכשלה. אין להקליד הכול מחדש; נסה שוב או פתח את המקור לבדיקה: '+String(e?.message||''),true);
     }
   }
+
   // Pure parser exposed for verification; it has no database or file access.
   window.matokOnboardingParseText=parseText;
+  window.matokOnboardingParseRows=parseEmployeeRows;
+  window.matokValidateIsraeliId=validIsraeliId;
   window.matokOpenOnboardingProfile=async staffId=>{
     if(!$('matokIntakeHub'))init();
     if(!items.length)await loadItems();
