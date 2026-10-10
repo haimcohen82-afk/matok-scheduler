@@ -6,11 +6,15 @@
   const BUCKET='staff-onboarding-originals';
   const KEYS=[
     ['full_name','שם מלא'],['first_name','שם פרטי'],['last_name','שם משפחה'],
-    ['identity_number','תעודה מזהה'],['phone','טלפון'],['email','דוא״ל'],
-    ['city','עיר / יישוב'],['address','כתובת'],['birth_date','תאריך לידה'],
-    ['preferred_role','תפקיד'],['available_shifts','משמרות'],['friday','שישי'],
-    ['preferred_start','תאריך התחלה'],['experience','ניסיון'],
-    ['notes','הערות'],['extra_fields','שדות נוספים שזוהו בקובץ']
+    ['identity_number','תעודה מזהה'],['birth_date','תאריך לידה'],
+    ['phone','טלפון'],['email','דוא״ל'],['city','עיר / יישוב'],['address','כתובת'],
+    ['bank_details','חשבון בנק'],['emergency_contact','איש קשר לחירום'],
+    ['preferred_role','תפקיד'],['direct_manager','ממונה ישיר/ה'],
+    ['employment_scope','היקף משרה'],['pos_employee_number','מספר עובד/ת בקופה'],
+    ['hourly_wage','שכר לשעה'],['preferred_start','תאריך תחילת עבודה'],
+    ['payment_terms','מועד ואופן תשלום'],['weekly_rest_day','יום מנוחה שבועי'],
+    ['health_fund','קופת חולים'],['available_shifts','משמרות'],['friday','שישי'],
+    ['experience','ניסיון'],['notes','הערות'],['extra_fields','שדות נוספים שזוהו בקובץ']
   ];
   let items=[],active=null,listBusy=false;
   function ensureStyle(){
@@ -369,11 +373,16 @@
         try{
           await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js','Tesseract');
           let recognized='';
-          for(let pageNumber=1;pageNumber<=Math.min(pdf.numPages,3);pageNumber++){
-            const page=await pdf.getPage(pageNumber),viewport=page.getViewport({scale:1.5});
+          const ocrPages=Math.min(pdf.numPages,3);
+          for(let pageNumber=1;pageNumber<=ocrPages;pageNumber++){
+            const page=await pdf.getPage(pageNumber);
+            const scale=pageNumber<=2?3.0:2.0;
+            const viewport=page.getViewport({scale});
             const canvas=document.createElement('canvas');
             canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
-            await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+            const ctx=canvas.getContext('2d',{willReadFrequently:true});
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+            await page.render({canvasContext:ctx,viewport}).promise;
             const result=await Tesseract.recognize(canvas,'heb+eng');
             recognized+='\n-- OCR עמוד '+pageNumber+' --\n'+(result.data?.text||'');
             canvas.width=0;canvas.height=0;
