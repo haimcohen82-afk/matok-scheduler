@@ -488,11 +488,7 @@
   })();
   const headerKey=value=>{
     const norm=normalizeHeader(value);
-    if(HEADER_LOOKUP.has(norm))return HEADER_LOOKUP.get(norm);
-    for(const [alias,key] of HEADER_LOOKUP){
-      if(norm.length>=3&&(norm===alias||norm.includes(alias)||alias.includes(norm)))return key;
-    }
-    return '';
+    return HEADER_LOOKUP.get(norm)||'';
   };
   const cleanIdentity=value=>String(value??'').replace(/[^0-9A-Za-z]/g,'').trim();
   function validIsraeliId(value){
