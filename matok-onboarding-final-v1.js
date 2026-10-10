@@ -697,7 +697,7 @@
     pick('payment_terms',/מועד(?:\s+ואופן)?\s+התשלום\s*[:：\-]?\s*([^\n.]{4,220})/i,'high',page2,true);
     {
       const rest=page2.match(/יום\s+(?:המנוחה|מנוחה)\s+השבועי\s*[:：\-]?\s*([^\n.]{2,60})/i)?.[1]?.trim();
-      if(rest&&/^(?:שבת|ראשון|שני|שלישי|רביעי|חמישי|שישי)\b/.test(rest))set('weekly_rest_day',rest,'high',true);
+      if(rest&&/^(?:שבת|ראשון|שני|שלישי|רביעי|חמישי|שישי)(?:\s|$)/.test(rest))set('weekly_rest_day',rest,'high',true);
     }
 
     // Fallbacks when the agreement page is absent.
@@ -710,7 +710,7 @@
     pick('payment_terms',/(?:^|\n)\s*מועד(?:\s+ואופן)?\s+תשלום\s*[:：\-]?\s*([^\n]{4,220})/i,'medium',src);
     {
       const rest=src.match(/(?:^|\n)\s*יום מנוחה שבועי\s*[:：\-]?\s*([^\n]{2,60})/i)?.[1]?.trim();
-      if(rest&&/^(?:שבת|ראשון|שני|שלישי|רביעי|חמישי|שישי)\b/.test(rest))set('weekly_rest_day',rest,'medium');
+      if(rest&&/^(?:שבת|ראשון|שני|שלישי|רביעי|חמישי|שישי)(?:\s|$)/.test(rest))set('weekly_rest_day',rest,'medium');
     }
 
     // Standard MATOK form writes "city street number" in the address row.
