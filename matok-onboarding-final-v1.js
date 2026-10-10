@@ -539,47 +539,90 @@
     });
   }
   function parseLabeledText(text){
-    const src=String(text||'').replace(/\r/g,'\n'),lines=src.split(/\n/).map(x=>x.trim()).filter(Boolean);
-    const patterns={
-      full_name:/^(?:שם מלא|שם העובד(?:\/ת)?|שם עובד|שם פרטי ומשפחה|full name|employee name)\s*[:：\-]\s*(.{2,150})$/i,
-      first_name:/^(?:שם פרטי|first name)\s*[:：\-]\s*(.{1,100})$/i,
-      last_name:/^(?:שם משפחה|last name|surname)\s*[:：\-]\s*(.{1,100})$/i,
-      identity_number:/^(?:תעודת זהות|ת[."׳״']?ז|מספר זהות|תעודה מזהה|מספר תעודה|id number|identity number)\s*[:：\-]\s*([0-9A-Za-z .\-]{5,30})$/i,
-      phone:/^(?:טלפון(?: נייד)?|נייד|פלאפון|מספר טלפון|phone|mobile)\s*[:：\-]\s*([+\d\s()\-]{9,22})$/i,
-      email:/^(?:דוא.?ל|אימייל|מייל|email|e-mail)\s*[:：\-]\s*(.{3,180})$/i,
-      city:/^(?:עיר|יישוב|ישוב|מקום מגורים|עיר מגורים|city)\s*[:：\-]\s*(.{2,100})$/i,
-      address:/^(?:כתובת|address)\s*[:：\-]\s*(.{2,250})$/i,
-      birth_date:/^(?:תאריך לידה|לידה|date of birth|birth date|dob)\s*[:：\-]\s*(.{2,50})$/i,
-      preferred_role:/^(?:תפקיד|תפקיד מבוקש|role|position)\s*[:：\-]\s*(.{2,90})$/i,
-      available_shifts:/^(?:משמרות|זמינות|שעות עבודה|availability|shifts)\s*[:：\-]\s*(.{2,300})$/i,
-      friday:/^(?:יום שישי|שישי|friday)\s*[:：\-]\s*(.{2,80})$/i,
-      preferred_start:/^(?:תאריך התחלה|תחילת עבודה|מועד התחלה|start date)\s*[:：\-]\s*(.{2,50})$/i,
-      experience:/^(?:ניסיון|ניסיון תעסוקתי|וותק|experience)\s*[:：\-]\s*(.{2,900})$/i
-    };
+    const src=String(text||'')
+      .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'')
+      .replace(/\r/g,'\n');
     const details={},confidence={},extra=[];
-    for(const line of lines){
-      let matched=false;
-      for(const [key,pattern] of Object.entries(patterns)){
-        const match=line.match(pattern);
-        if(match){
-          if(!details[key]){details[key]=match[1].trim();confidence[key]='high'}
-          matched=true;break;
-        }
-      }
-      if(!matched&&/^[^\n:：]{2,48}\s*[:：]\s*\S/.test(line)){
-        if(/חשבון בנק|סניף בנק|iban|מחלה|רפואי|אבחון/i.test(line))continue;
-        extra.push(line.slice(0,280));
-      }
+    const page1=(src.split(/-- OCR עמוד 2 --/i)[0]||src);
+    const page2=(src.match(/-- OCR עמוד 2 --([\s\S]*?)(?:-- OCR עמוד 3 --|$)/i)?.[1]||src);
+
+    const set=(key,value,level='high',overwrite=false)=>{
+      value=String(value??'').replace(/\s+/g,' ').trim().replace(/[.;,:-]+$/,'').trim();
+      if(!value)return;
+      if(overwrite||!details[key]){details[key]=value;confidence[key]=level}
+    };
+    const pick=(key,regex,level='high',source=src,overwrite=false)=>{
+      const m=source.match(regex);if(m?.[1])set(key,m[1],level,overwrite);
+    };
+
+    // First page: personal data. Accept label + whitespace because generated PDFs
+    // and OCR do not reliably preserve colons/table borders.
+    pick('full_name',/(?:^|\n)\s*שם מלא\s*[:：\-]?\s*([^\n]{2,150})/i,'high',page1);
+    pick('first_name',/(?:^|\n)\s*שם פרטי\s*[:：\-]?\s*([^\n]{1,100})/i,'high',page1);
+    pick('last_name',/(?:^|\n)\s*שם משפחה\s*[:：\-]?\s*([^\n]{1,100})/i,'high',page1);
+    pick('birth_date',/(?:^|\n)\s*תאריך לידה\s*[:：\-]?\s*(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4})/i,'high',page1);
+    pick('address',/(?:^|\n)\s*כתובת\s*[:：\-]?\s*([^\n]{3,250})/i,'high',page1);
+    pick('email',/(?:^|\n)\s*(?:אימייל|דוא.?ל|מייל)\s*[:：\-]?\s*([\w.+-]+@[\w.-]+\.[A-Za-z]{2,})/i,'high',page1);
+    pick('bank_details',/(?:^|\n)\s*חשבון בנק\s*[:：\-]?\s*([^\n]{3,300})/i,'low',page1);
+    pick('emergency_contact',/(?:^|\n)\s*איש קשר לחירום\s*[:：\-]?\s*([^\n]{3,300})/i,'medium',page1);
+    pick('health_fund',/קופת חולים\s*[:：\-]?\s*([^\n]{2,100})/i,'medium',page1);
+
+    // OCR frequently reverses/loses the identity label, so choose the first valid
+    // Israeli 9-digit ID from the personal-data area. A checksum match is high confidence.
+    if(!details.identity_number){
+      const candidates=[...page1.matchAll(/(?<!\d)(\d{9})(?!\d)/g)].map(m=>m[1]);
+      const identity=candidates.find(validIsraeliId);
+      if(identity)set('identity_number',identity,'high');
     }
+
     if(!details.phone){
-      const p=src.match(/(?:\+972[\s-]?|0)5\d[\s-]?\d{3}[\s-]?\d{4}/);
-      if(p){details.phone=p[0];confidence.phone='low'}
+      const p=page1.match(/(?:\+972[\s-]?|0)5\d[\s-]?\d{3}[\s-]?\d{4}/);
+      if(p)set('phone',p[0],'high');
     }
     if(!details.email){
-      const e=src.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i);
-      if(e){details.email=e[0];confidence.email='low'}
+      const e=page1.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/i);
+      if(e)set('email',e[0],'medium');
+    }
+
+    // Employment agreement on page 2 repeats core employment values as sentences and
+    // is materially more reliable than the compact table on page 1. Prefer page 2.
+    pick('preferred_start',/תאריך תחילת העבודה\s*[:：\-]?\s*(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})/i,'high',page2,true);
+    pick('preferred_role',/(?:תיאור\s+)?התפקיד(?:\s+העיקרי)?\s*[:：\-]?\s*([^\n.]{2,120})/i,'high',page2,true);
+    pick('direct_manager',/הממונה\s+(?:ה)?(?:ישיר\/?ה|יששיר\/?ה|ישיר)\s*[:：\-]?\s*([^\n.]{2,100})/i,'high',page2,true);
+    pick('employment_scope',/היקף המשרה\s*[:：\-]?\s*([^\n.]{2,220})/i,'high',page2,true);
+    pick('pos_employee_number',/מספר עובד\/?ת בקופה\s*[:：\-]?\s*(\d{3,9})/i,'high',page2,true);
+    pick('hourly_wage',/(?:שכר יסוד|שכר לשעה(?:\s*\(ברוטו\))?)\s*[:：\-]?\s*(\d+(?:[.,]\d+)?)\s*₪?/i,'high',page2,true);
+    pick('payment_terms',/מועד(?:\s+ואופן)?\s+התשלום\s*[:：\-]?\s*([^\n.]{4,220})/i,'high',page2,true);
+    pick('weekly_rest_day',/יום\s+(?:המנוחה|מנוחה)\s+השבועי\s*[:：\-]?\s*([^\n.]{2,60})/i,'high',page2,true);
+
+    // Fallbacks when the agreement page is absent.
+    pick('preferred_start',/(?:^|\n)\s*תאריך תחילת עבודה\s*[:：\-]?\s*(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})/i,'medium',src);
+    pick('preferred_role',/(?:^|\n)\s*תפקיד\s*[:：\-]?\s*([^\n]{2,120})/i,'medium',src);
+    pick('direct_manager',/(?:^|\n)\s*ממונה [^:\n]*\s*[:：\-]?\s*([^\n]{2,100})/i,'medium',src);
+    pick('employment_scope',/(?:^|\n)\s*היקף משרה\s*[:：\-]?\s*([^\n]{2,220})/i,'medium',src);
+    pick('pos_employee_number',/(?:^|\n)\s*מספר עובד\/?ת בקופה\s*[:：\-]?\s*(\d{3,9})/i,'medium',src);
+    pick('hourly_wage',/(?:^|\n)\s*שכר לשעה[^0-9\n]*(\d+(?:[.,]\d+)?)/i,'low',src);
+    pick('weekly_rest_day',/(?:^|\n)\s*יום מנוחה שבועי\s*[:：\-]?\s*([^\n]{2,60})/i,'medium',src);
+
+    // Standard MATOK form writes "city street number" in the address row.
+    if(!details.city&&details.address){
+      const parts=String(details.address).trim().split(/\s+/);
+      if(parts.length>=3&&/^[\u0590-\u05ff'-]{2,}$/.test(parts[0])&&/\d/.test(parts.join(' '))){
+        set('city',parts[0],'medium');
+      }
+    }
+
+    // Preserve useful labeled fields not mapped above, but never auto-import medical
+    // or bank-account fragments into arbitrary extras.
+    for(const raw of src.split(/\n/)){
+      const line=raw.trim();
+      if(!/^[^\n:：]{2,48}\s*[:：]\s*\S/.test(line))continue;
+      if(/חשבון בנק|סניף בנק|iban|מחלה|רפואי|אבחון/i.test(line))continue;
+      const already=Object.values(details).some(v=>String(v||'')&&line.includes(String(v)));
+      if(!already)extra.push(line.slice(0,280));
     }
     if(extra.length){details.extra_fields=extra.slice(0,45).join('\n');confidence.extra_fields='low'}
+
     return finalizeDetails(details,confidence);
   }
   function parseEmployeeRows(text){
