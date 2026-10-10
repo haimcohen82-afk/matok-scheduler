@@ -3,9 +3,10 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 
-const [manager,publicJs,join,schema,structuredSchema,build,shell,dist,distJoin]=await Promise.all([
+const [manager,publicJs,join,schema,structuredSchema,directSchema,build,shell,dist,distJoin]=await Promise.all([
  'matok-onboarding-final-v1.js','join-client.js','join.html',
  'sql/onboarding-private-intake.sql','sql/onboarding-structured-import.sql',
+ 'sql/onboarding-direct-materialization.sql',
  'build.mjs','app-shell.html','dist/index.html','dist/join.html'
 ].map(p=>readFile(p,'utf8')));
 
@@ -42,6 +43,14 @@ assert(manager.includes('admin_import_onboarding_file'));
 assert(manager.includes('admin_import_onboarding_batch'));
 assert(manager.includes('admin_get_staff_private_profile'));
 assert(manager.includes('admin_get_onboarding_text'));
+assert(manager.includes('admin_materialize_onboarding_employee'));
+assert(manager.includes('matokCanAutoMaterialize'));
+assert(manager.includes('MATOK FIELD PASS'));
+assert(directSchema.includes('admin_materialize_onboarding_employee'));
+assert(directSchema.includes('admin_save_payroll_profile'));
+assert(directSchema.includes("identity_requires_review"));
+assert(directSchema.includes("v_profile_details:=v_profile_details-'bank_details'"));
+assert(!directSchema.includes('grant execute on function public.admin_materialize_onboarding_employee(uuid) to anon'));
 assert(structuredSchema.includes('create table if not exists public.staff_private_profiles'));
 assert(structuredSchema.includes('alter table public.staff_private_profiles enable row level security'));
 assert(structuredSchema.includes('admin_import_onboarding_batch'));
@@ -94,6 +103,48 @@ assert(manager.includes('window.matokOnboardingParseText=parseText'));
   assert.equal(invalid.details.identity_valid,false);
   assert.equal(invalid.confidence.identity_number,'low');
   assert.equal(parse('טלפון: 0501234567').confidence.full_name,'low');
+
+  // Scanned MATOK-style form: compact page-1 OCR may misread numeric values,
+  // while the agreement and numeric field pass must recover the reliable values.
+  const scanned=parse([
+    '-- OCR עמוד 1 --',
+    'שם מלא נועה כהן',
+    'תעודת זהות 123456782',
+    'תאריך לידה 8',
+    'כתובת חולון דב הוז 1',
+    'נייד 0501234567',
+    'אימייל test@example.org',
+    'מספר עובד/ת בקופה 20000',
+    'שכר לשעה (ברוטו) 5 ₪',
+    'מועד תשלום עד 10 בחודש העוקב, בהעברה בנקאית',
+    'יום מנוחה שבועי שבת',
+    '-- OCR עמוד 2 --',
+    'תאריך תחילת העבודה: 21.10.2026.',
+    'תיאור התפקיד העיקרי: עובד/ת משמרות בחנות.',
+    'הממונה הישיר/ה: חיים.',
+    'היקף המעורה: משרה חלקית לפי סידור עבודה שבועי.',
+    'מספר עובד/ת בקופה: 26000.',
+    'יום המנוחה השבועי: AW',
+    'שכר יסוד: 35 ₪ לשעה (ברוטו).',
+    '-- MATOK FIELD PASS --',
+    'תעודת זהות: 123456782',
+    'תאריך לידה: 1.2.1988',
+    'טלפון נייד: 0501234567',
+    'מספר עובד/ת בקופה: 26000'
+  ].join('\n'));
+  assert.equal(scanned.details.full_name,'נועה כהן');
+  assert.equal(scanned.details.identity_number,'123456782');
+  assert.equal(scanned.details.identity_valid,true);
+  assert.equal(scanned.details.birth_date,'1.2.1988');
+  assert.equal(scanned.details.phone,'0501234567');
+  assert.equal(scanned.details.city,'חולון');
+  assert.equal(scanned.details.pos_employee_number,'26000');
+  assert.equal(scanned.details.hourly_wage,'35');
+  assert.equal(scanned.details.weekly_rest_day,'שבת');
+  assert.equal(ctx.window.matokCanAutoMaterialize(scanned),true);
+
+  const unsafe=parse('שם מלא: בדיקה\nתעודת זהות: 123456789\nטלפון: 0501234567');
+  assert.equal(ctx.window.matokCanAutoMaterialize(unsafe),false);
 }
 
 // Simulate actual candidate browser code: validate unique token then submit.
