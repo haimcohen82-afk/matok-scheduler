@@ -406,6 +406,43 @@
       script.onerror=()=>reject(new Error('module_load_failed'));document.head.appendChild(script);
     });
   }
+  async function matokTemplateNumericPass(pdf,recognized){
+    if(!/(?:טופס\s+קליטת\s+עובד|כרטיס\s+עובד)/i.test(recognized||''))return recognized;
+    try{
+      const page=await pdf.getPage(1),viewport=page.getViewport({scale:3});
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+      await page.render({canvasContext:ctx,viewport}).promise;
+      async function cropOcr(box){
+        const [x1,y1,x2,y2]=box;
+        const sx=Math.round(canvas.width*x1),sy=Math.round(canvas.height*y1);
+        const sw=Math.max(1,Math.round(canvas.width*(x2-x1))),sh=Math.max(1,Math.round(canvas.height*(y2-y1)));
+        const crop=document.createElement('canvas');crop.width=sw;crop.height=sh;
+        const c=crop.getContext('2d',{willReadFrequently:true});
+        c.fillStyle='#fff';c.fillRect(0,0,sw,sh);c.drawImage(canvas,sx,sy,sw,sh,0,0,sw,sh);
+        const r=await Tesseract.recognize(crop,'eng');
+        crop.width=0;crop.height=0;
+        return String(r.data?.text||'').replace(/\s+/g,' ').trim();
+      }
+      const id=await cropOcr([0.576,0.181,0.792,0.209]);
+      const birth=await cropOcr([0.576,0.207,0.792,0.235]);
+      const phone=await cropOcr([0.576,0.254,0.792,0.282]);
+      const pos=await cropOcr([0.576,0.475,0.792,0.508]);
+      const fields=[];
+      const idMatch=id.match(/(?<!\d)(\d{9})(?!\d)/);if(idMatch)fields.push('תעודת זהות: '+idMatch[1]);
+      const birthMatch=birth.match(/\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}/);if(birthMatch)fields.push('תאריך לידה: '+birthMatch[0]);
+      const phoneMatch=phone.match(/0\d{8,10}/);if(phoneMatch)fields.push('טלפון נייד: '+phoneMatch[0]);
+      const posMatch=pos.match(/\d{3,9}/);if(posMatch)fields.push('מספר עובד/ת בקופה: '+posMatch[0]);
+      canvas.width=0;canvas.height=0;
+      return fields.length?(recognized+'\n-- MATOK FIELD PASS --\n'+fields.join('\n')):recognized;
+    }catch(error){
+      console.warn('MATOK numeric field pass',error);
+      return recognized;
+    }
+  }
+
   async function fileText(file){
     const suffix=file.name.split('.').pop().toLowerCase();
     const data=await file.arrayBuffer();
@@ -448,6 +485,7 @@
             recognized+='\n-- OCR עמוד '+pageNumber+' --\n'+(result.data?.text||'');
             canvas.width=0;canvas.height=0;
           }
+          recognized=await matokTemplateNumericPass(pdf,recognized);
           text=recognized;
         }catch(err){console.warn('scanned PDF OCR fallback',err)}
         if(text.trim().length<45)throw new Error('הקובץ סרוק או לא קריא; המקור נשמר לבדיקה ידנית.');
@@ -602,6 +640,7 @@
     const details={},confidence={},extra=[];
     const page1=(src.split(/-- OCR עמוד 2 --/i)[0]||src);
     const page2=(src.match(/-- OCR עמוד 2 --([\s\S]*?)(?:-- OCR עמוד 3 --|$)/i)?.[1]||src);
+    const template=(src.match(/-- MATOK FIELD PASS --([\s\S]*)$/i)?.[1]||'');
 
     const set=(key,value,level='high',overwrite=false)=>{
       value=String(value??'').replace(/\s+/g,' ').trim().replace(/[.;,:-]+$/,'').trim();
@@ -639,6 +678,12 @@
     if(!details.email){
       const e=page1.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/i);
       if(e)set('email',e[0],'medium');
+    }
+    if(template){
+      pick('identity_number',/תעודת זהות\s*[:：\-]?\s*(\d{9})/i,'high',template,true);
+      pick('birth_date',/תאריך לידה\s*[:：\-]?\s*(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})/i,'high',template,true);
+      pick('phone',/טלפון נייד\s*[:：\-]?\s*(0\d{8,10})/i,'high',template,true);
+      pick('pos_employee_number',/מספר עובד\/?ת בקופה\s*[:：\-]?\s*(\d{3,9})/i,'high',template,true);
     }
 
     // Employment agreement on page 2 repeats core employment values as sentences and
