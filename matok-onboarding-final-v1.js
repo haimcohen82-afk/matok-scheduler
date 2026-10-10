@@ -659,6 +659,7 @@
     pick('birth_date',/(?:^|\n)\s*תאריך לידה\s*[:：\-]?\s*(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4})/i,'high',page1);
     pick('address',/(?:^|\n)\s*כתובת\s*[:：\-]?\s*([^\n]{3,250})/i,'high',page1);
     pick('email',/(?:^|\n)\s*(?:אימייל|דוא.?ל|מייל)\s*[:：\-]?\s*([\w.+-]+@[\w.-]+\.[A-Za-z]{2,})/i,'high',page1);
+    pick('city',/(?:^|\n)\s*(?:עיר|יישוב|ישוב|מקום מגורים|עיר מגורים)\s*[:：\-]?\s*([^\n]{2,100})/i,'high',page1);
     pick('bank_details',/(?:^|\n)\s*חשבון בנק\s*[:：\-]?\s*([^\n]{3,300})/i,'low',page1);
     pick('emergency_contact',/(?:^|\n)\s*איש קשר לחירום\s*[:：\-]?\s*([^\n]{3,300})/i,'medium',page1);
     pick('health_fund',/קופת חולים\s*[:：\-]?\s*([^\n]{2,100})/i,'medium',page1);
@@ -716,7 +717,8 @@
     // Standard MATOK form writes "city street number" in the address row.
     if(!details.city&&details.address){
       const parts=String(details.address).trim().split(/\s+/);
-      if(parts.length>=3&&/^[\u0590-\u05ff'-]{2,}$/.test(parts[0])&&/\d/.test(parts.join(' '))){
+      const streetWords=new Set(['רחוב','רח','שדרות','שד','דרך','סמטת','כיכר']);
+      if(parts.length>=3&&!streetWords.has(parts[0])&&/^[\u0590-\u05ff'-]{2,}$/.test(parts[0])&&/\d/.test(parts.join(' '))){
         set('city',parts[0],'medium');
       }
     }
