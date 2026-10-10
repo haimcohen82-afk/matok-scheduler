@@ -222,11 +222,67 @@
     if(active.source==='uploaded_file')add('הצגת הטקסט המלא שחולץ',()=>showFullExtractedText(active));
     if(editing){
       add('שמירת תיקוני פענוח',async()=>{try{await savePending()}catch(e){feedback('שמירת התיקונים נכשלה.',true)}},'secondary');
-      add('קליטת עובד חדש',()=>openCreateApproval(),'primary');
+      if(active.source==='uploaded_file')add('קליטה ישירה למערכת',()=>materializeDirect(),'primary');
+      add('קליטת עובד חדש ידנית',()=>openCreateApproval(),'secondary');
       add('שיוך לעובד קיים',()=>openExistingApproval());
     }
     openModal('matokIntakeModal');
   }
+  async function materializeDirect(){
+    if(!active||active.review_status!=='pending')return;
+    try{await savePending()}catch(e){feedback('לא ניתן לשמור את הפענוח לפני הקליטה.',true);return}
+    const d=active.details||{},c=active.confidence||{};
+    const missing=[];
+    if(!d.full_name||c.full_name==='low')missing.push('שם מלא');
+    if(!d.phone||c.phone==='low')missing.push('טלפון');
+    if(d.identity_number&&d.identity_valid===false)missing.push('תעודה מזהה לא תקינה');
+    if(missing.length){
+      feedback('לפני קליטה ישירה צריך לבדוק מול קובץ המקור: '+missing.join(', ')+'.',true);
+      if(active.original_path)await openSource(active);
+      return;
+    }
+    const summary=[
+      d.full_name,
+      d.phone?'טלפון '+d.phone:'',
+      d.city?'עיר '+d.city:'',
+      d.preferred_start?'תחילת עבודה '+d.preferred_start:'',
+      d.hourly_wage?'שכר '+d.hourly_wage+' ₪ לשעה':''
+    ].filter(Boolean).join('\n');
+    if(!confirm('להקים את העובד ישירות במערכת ללא הקלדה מחדש?\n\n'+summary))return;
+    const actions=$('intakeReviewActions');
+    const buttons=[...actions.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+    try{
+      feedback('מקים כרטיס עובד, פרופיל מנהל ונתוני שכר…');
+      const r=await supabaseClient.rpc('admin_materialize_onboarding_employee',{p_record_id:active.id});
+      if(r.error)throw r.error;
+      const result=r.data||{};
+      const credentials='שם משתמש: '+String(result.username||'')+'\nקוד כניסה: '+String(result.pin||'');
+      actions.innerHTML='<div class="intakeState good" style="width:100%"><b>העובד נקלט ישירות במערכת.</b><br>'+
+        safe(result.full_name||d.full_name)+'<br>'+
+        (result.hourly_rate!=null?'שכר לשעה: '+safe(result.hourly_rate)+' ₪<br>':'')+
+        (result.employment_start?'תחילת עבודה: '+safe(result.employment_start)+'<br>':'')+
+        '<textarea id="intakeNewCredentials" readonly style="width:100%;margin-top:8px">'+safe(credentials)+'</textarea>'+
+        '<button type="button" class="btn secondary" id="intakeCopyCredentials">העתקת פרטי כניסה</button></div>';
+      $('intakeCopyCredentials').onclick=async()=>{
+        const value=$('intakeNewCredentials').value;
+        try{await navigator.clipboard.writeText(value);feedback('פרטי הכניסה הועתקו.')}
+        catch(_){$('intakeNewCredentials').select();feedback('פרטי הכניסה מסומנים להעתקה.')}
+      };
+      await window.loadAdminData?.();
+      await loadItems();
+      active=items.find(x=>String(x.id)===String(active.id))||active;
+    }catch(e){
+      console.error('direct employee materialization',e);
+      const msg=String(e?.message||'');
+      feedback(msg.includes('phone_matches_existing_employee')
+        ?'הטלפון כבר קיים במערכת. השתמש ב״שיוך לעובד קיים״ כדי למנוע כפילות.'
+        :msg.includes('identity_requires_review')
+          ?'התעודה המזהה דורשת בדיקה מול המקור לפני יצירת העובד.'
+          :'הקליטה הישירה נכשלה: '+msg,true);
+      buttons.forEach(b=>b.disabled=false);
+    }
+  }
+
   async function openCreateApproval(){
     try{await savePending()}catch(e){feedback('יש לשמור תחילה את תיקוני הנתונים.',true);return}
     const data=active.details||{},box=$('intakeReviewActions');
@@ -309,7 +365,12 @@
     const labels={
       first_name:'שם פרטי',last_name:'שם משפחה',identity_type:'סוג תעודה',
       identity_number:'תעודה מזהה',email:'דוא״ל',city:'עיר / יישוב',
-      address:'כתובת',birth_date:'תאריך לידה',preferred_start:'תאריך התחלה'
+      address:'כתובת',birth_date:'תאריך לידה',preferred_start:'תאריך התחלה',
+      bank_details:'חשבון בנק',emergency_contact:'איש קשר לחירום',
+      direct_manager:'ממונה ישיר/ה',employment_scope:'היקף משרה',
+      pos_employee_number:'מספר עובד/ת בקופה',hourly_wage:'שכר לשעה',
+      payment_terms:'מועד ואופן תשלום',weekly_rest_day:'יום מנוחה שבועי',
+      health_fund:'קופת חולים'
     };
     const profileRows=Object.entries(labels).filter(([key])=>privateProfile?.[key]).map(([key,label])=>{
       const suffix=key==='identity_number'&&privateProfile.identity_valid===false
