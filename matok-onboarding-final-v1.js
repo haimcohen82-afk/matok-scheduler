@@ -688,6 +688,29 @@
   }
   function parseText(text){return parseEmployeeRows(text)[0]}
 
+  function canAutoMaterialize(row){
+    const d=row?.details||{},c=row?.confidence||{};
+    if(!d.full_name||!d.phone)return false;
+    if(c.full_name!=='high'||c.phone!=='high')return false;
+    if(d.identity_number&&(d.identity_valid!==true||c.identity_number!=='high'))return false;
+    return true;
+  }
+  function showAutoCreatedEmployees(results){
+    const holder=$('intakeGenerated');if(!holder||!results.length)return;
+    holder.innerHTML='<div class="intakeState good"><b>עובדים שנקלטו ישירות במערכת</b><p>הפרטים נבנו מהקובץ ללא הקלדה. שמור את פרטי הכניסה ושלח לעובד לפי הצורך.</p>'+
+      results.map(r=>'<div class="intakeCard"><b>'+safe(r.full_name||'עובד')+'</b>'+
+        '<div>שם משתמש: <code>'+safe(r.username||'')+'</code> · קוד: <code>'+safe(r.pin||'')+'</code></div>'+
+        (r.hourly_rate!=null?'<small>שכר לשעה: '+safe(r.hourly_rate)+' ₪</small>':'')+
+        (r.employment_start?'<small> · תחילת עבודה: '+safe(r.employment_start)+'</small>':'')+
+        '</div>').join('')+
+      '<button type="button" class="btn secondary" id="intakeCopyAllCredentials">העתקת כל פרטי הכניסה</button></div>';
+    $('intakeCopyAllCredentials').onclick=async()=>{
+      const text=results.map(r=>(r.full_name||'עובד')+'\nשם משתמש: '+(r.username||'')+'\nקוד: '+(r.pin||'')).join('\n\n');
+      try{await navigator.clipboard.writeText(text);feedback('פרטי הכניסה הועתקו.')}
+      catch(_){feedback('העתקה אוטומטית לא זמינה; פרטי הכניסה מוצגים על המסך.',true)}
+    };
+  }
+
   async function importFile(file,input){
     if(!isAdmin()||!file)return;
     if(file.size===0||file.size>12*1024*1024){feedback('הקובץ ריק או גדול מ־12MB.',true);input.value='';return}
@@ -739,12 +762,29 @@
         ids=reg.data?[reg.data]:[];
       }
       if(!ids.length)throw new Error('לא נמצאו שורות עובד לשמירה');
-      feedback(ids.length>1
-        ?'הקובץ פורק ל־'+ids.length+' עובדים. כל עובד קיבל רשומת קליטה נפרדת; רק שדות לא ודאיים מסומנים לבדיקה.'
-        :'הקובץ נקלט והפרטים פורקו לשדות. רק מידע לא ודאי מסומן לבדיקה.');
+
+      const created=[],reviewIds=[];
+      for(let i=0;i<ids.length;i++){
+        const row=rows[i]||rows[0];
+        if(!parseWarning&&canAutoMaterialize(row)){
+          const materialized=await supabaseClient.rpc('admin_materialize_onboarding_employee',{p_record_id:ids[i]});
+          if(!materialized.error&&materialized.data?.created){
+            created.push(materialized.data);continue;
+          }
+          console.warn('direct materialization deferred',materialized.error);
+        }
+        reviewIds.push(ids[i]);
+      }
+
       input.value='';
+      if(created.length)await window.loadAdminData?.();
       await loadItems();
-      if(ids.length===1)openReview(ids[0]);
+      if(created.length)showAutoCreatedEmployees(created);
+      feedback(
+        created.length+' עובד/ים נקלטו ישירות במערכת'+
+        (reviewIds.length?' · '+reviewIds.length+' רשומה/ות דורשות בדיקה מול המקור.':' · אין צורך בהקלדה ידנית.')
+      );
+      if(reviewIds.length===1)openReview(reviewIds[0]);
     }catch(e){
       console.error('import staff original',e);
       if(uploaded)await supabaseClient.storage.from(BUCKET).remove([path]);
@@ -756,6 +796,7 @@
   window.matokOnboardingParseText=parseText;
   window.matokOnboardingParseRows=parseEmployeeRows;
   window.matokValidateIsraeliId=validIsraeliId;
+  window.matokCanAutoMaterialize=canAutoMaterialize;
   window.matokOpenOnboardingProfile=async staffId=>{
     if(!$('matokIntakeHub'))init();
     if(!items.length)await loadItems();
