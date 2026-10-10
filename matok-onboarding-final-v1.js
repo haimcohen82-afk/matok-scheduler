@@ -695,7 +695,10 @@
     pick('pos_employee_number',/מספר עובד\/?ת בקופה\s*[:：\-]?\s*(\d{3,9})/i,'high',page2,true);
     pick('hourly_wage',/(?:שכר יסוד|שכר לשעה(?:\s*\(ברוטו\))?)\s*[:：\-]?\s*(\d+(?:[.,]\d+)?)\s*₪?/i,'high',page2,true);
     pick('payment_terms',/מועד(?:\s+ואופן)?\s+התשלום\s*[:：\-]?\s*([^\n.]{4,220})/i,'high',page2,true);
-    pick('weekly_rest_day',/יום\s+(?:המנוחה|מנוחה)\s+השבועי\s*[:：\-]?\s*([^\n.]{2,60})/i,'high',page2,true);
+    {
+      const rest=page2.match(/יום\s+(?:המנוחה|מנוחה)\s+השבועי\s*[:：\-]?\s*([^\n.]{2,60})/i)?.[1]?.trim();
+      if(rest&&/^(?:שבת|ראשון|שני|שלישי|רביעי|חמישי|שישי)\b/.test(rest))set('weekly_rest_day',rest,'high',true);
+    }
 
     // Fallbacks when the agreement page is absent.
     pick('preferred_start',/(?:^|\n)\s*תאריך תחילת עבודה\s*[:：\-]?\s*(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})/i,'medium',src);
@@ -704,7 +707,11 @@
     pick('employment_scope',/(?:^|\n)\s*היקף משרה\s*[:：\-]?\s*([^\n]{2,220})/i,'medium',src);
     pick('pos_employee_number',/(?:^|\n)\s*מספר עובד\/?ת בקופה\s*[:：\-]?\s*(\d{3,9})/i,'medium',src);
     pick('hourly_wage',/(?:^|\n)\s*שכר לשעה[^0-9\n]*(\d+(?:[.,]\d+)?)/i,'low',src);
-    pick('weekly_rest_day',/(?:^|\n)\s*יום מנוחה שבועי\s*[:：\-]?\s*([^\n]{2,60})/i,'medium',src);
+    pick('payment_terms',/(?:^|\n)\s*מועד(?:\s+ואופן)?\s+תשלום\s*[:：\-]?\s*([^\n]{4,220})/i,'medium',src);
+    {
+      const rest=src.match(/(?:^|\n)\s*יום מנוחה שבועי\s*[:：\-]?\s*([^\n]{2,60})/i)?.[1]?.trim();
+      if(rest&&/^(?:שבת|ראשון|שני|שלישי|רביעי|חמישי|שישי)\b/.test(rest))set('weekly_rest_day',rest,'medium');
+    }
 
     // Standard MATOK form writes "city street number" in the address row.
     if(!details.city&&details.address){
