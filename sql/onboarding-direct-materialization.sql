@@ -128,11 +128,19 @@ declare
   v_start_text text;
   v_friday text;
   v_settings jsonb;
+  v_profile_details jsonb;
 begin
   if not public.is_admin() then raise exception 'not_authorized'; end if;
   select * into v_row from public.staff_onboarding_records where id=p_record_id for update;
   if not found or v_row.review_status<>'pending' then raise exception 'not_pending'; end if;
   v_details:=coalesce(v_row.details,'{}'::jsonb);
+  if coalesce(v_details->>'identity_number','')<>'' and coalesce((v_details->>'identity_valid')::boolean,false)=false then
+    raise exception 'identity_requires_review';
+  end if;
+  v_profile_details:=v_details;
+  if coalesce(v_row.confidence->>'bank_details','low')<>'high' then
+    v_profile_details:=v_profile_details-'bank_details';
+  end if;
   v_name=btrim(coalesce(v_details->>'full_name',''));
   v_phone=btrim(coalesce(v_details->>'phone',''));
   if length(v_name)<2 or length(regexp_replace(v_phone,'[^0-9]','','g'))<9 then
@@ -172,7 +180,7 @@ begin
     'role_name',v_role,'is_active',true,'settings',v_settings
   ),v_pin);
 
-  perform public.admin_upsert_staff_private_profile(v_staff,v_details);
+  perform public.admin_upsert_staff_private_profile(v_staff,v_profile_details);
 
   begin
     v_rate:=coalesce(nullif(regexp_replace(coalesce(v_details->>'hourly_wage',''),'[^0-9.]','','g'),'')::numeric,0);
