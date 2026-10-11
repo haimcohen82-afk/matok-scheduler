@@ -30,6 +30,19 @@
       const local=window.__MATOK_BUILD__?.buildId||'לא ידוע';
       const match=!deployed?.buildId||deployed.buildId===local;
       out.push(row('גרסת מערכת',local,match,deployed?.buildId?`גרסה בשרת: ${deployed.buildId}`:'קובץ גרסה לא זמין'));
+      const platform=window.MATOK_PLATFORM;
+      if(platform){
+        const info=platform.describe();
+        const profile=info.profile||{};
+        out.push(row('פרופיל מוצר',
+          profile.productName||profile.productId||'SIDIR',
+          true,
+          `${profile.edition||'—'} · אבטחה: ${profile.securityProfile||'—'} · הפצה: ${profile.distribution||'—'}`));
+        out.push(row('מודולים פעילים',
+          String(info.modules?.length||0),
+          (info.modules?.length||0)>1,
+          `${info.capabilities?.length||0} יכולות רשומות · ${profile.integrationProfile||'standalone'}`));
+      }
 
       const staffRes=await supabaseClient.from('staff').select('id',{count:'exact',head:true}).eq('is_active',true);
       out.push(row('חיבור לבסיס הנתונים',staffRes.error?'שגיאה':'תקין',!staffRes.error,staffRes.error?.message||`${staffRes.count||0} עובדים פעילים`));
