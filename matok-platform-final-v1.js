@@ -110,4 +110,7 @@
     domain:'platform',
     capabilities:['module-registry','event-bus','adapter-registry','product-profile']
   });
+  for(const moduleMeta of (window.__MATOK_MODULE_MANIFEST__||[])){
+    if(moduleMeta?.name&&moduleMeta.name!=='platform')registerModule(moduleMeta.name,moduleMeta);
+  }
 })();
