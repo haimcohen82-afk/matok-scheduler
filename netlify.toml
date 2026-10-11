@@ -26,3 +26,11 @@
     Referrer-Policy = "no-referrer"
     X-Frame-Options = "DENY"
     Cache-Control = "no-store"
+
+# Candidate HR forms carry bearer tokens and must not leak via referrers or caches.
+[[headers]]
+  for = "/candidate-form.html"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    X-Frame-Options = "DENY"
+    Cache-Control = "no-store"
