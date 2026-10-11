@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<title>MATOK BASIC | שאלון מועמד/ת</title>
+<style>
+:root{font-family:Arial,Heebo,sans-serif;color:#1a1a2e;background:#f5f0e8}*{box-sizing:border-box}body{margin:0;padding:18px}.page{max-width:760px;margin:auto}.brand{text-align:center;margin:14px 0 20px}.brand b{display:block;font-size:30px;letter-spacing:3px}.brand small{letter-spacing:5px}.bars{display:flex;gap:3px;justify-content:center;margin-top:9px}.bars i{width:30px;height:5px;border-radius:4px;background:#e8826a}.bars i:nth-child(2){background:#6bbfb5}.bars i:nth-child(3){background:#a7cb8e}.bars i:nth-child(4){background:#7eb4dc}.bars i:nth-child(5){background:#f2c77a}.card{background:#fff;border:1px solid #ded9d1;border-radius:18px;padding:22px;box-shadow:0 10px 28px #1a1a2e12}.intro{color:#666;line-height:1.6}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 13px}.wide{grid-column:1/-1}label{display:block;margin-top:12px;font-size:13px;font-weight:bold}input,select,textarea{width:100%;margin-top:6px;padding:11px;border:1px solid #c7c7ce;border-radius:10px;background:#fff;font:inherit}textarea{min-height:86px;resize:vertical}.consent{display:flex;gap:8px;align-items:flex-start;font-weight:normal;line-height:1.5}.consent input{width:20px;margin-top:4px}.button{width:100%;border:0;border-radius:12px;padding:14px;background:#1a1a2e;color:white;font-size:17px;font-weight:bold;margin-top:18px}.status{display:none;margin-top:12px;padding:11px;border-radius:10px;background:#eef9f6}.status.show{display:block}.status.error{background:#fff0ed;color:#8c372f}@media(max-width:600px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.card{padding:16px}}
+</style>
+</head>
+<body><div class="page"><div class="brand"><b>MATOK</b><small>BASIC</small><div class="bars"><i></i><i></i><i></i><i></i><i></i></div></div>
+<main class="card"><h1 id="title">טוען שאלון…</h1><p id="intro" class="intro"></p><div id="initial">בודקים את הקישור האישי…</div>
+<form id="candidateForm" style="display:none" autocomplete="on"><div id="fields" class="grid"></div>
+<label class="consent wide"><input type="checkbox" name="consent" required><span>אני מאשר/ת להעביר את הפרטים שמילאתי להנהלת MATOK BASIC לצורך בחינת מועמדות/קליטה לעבודה.</span></label>
+<input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px" aria-hidden="true">
+<button id="submitBtn" class="button" type="submit">שליחת השאלון</button></form><div id="status" class="status" role="status"></div></main></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4" referrerpolicy="no-referrer"></script>
+<script>window.MATOK_PUBLIC_CONFIG={url:%%SUPABASE_URL%%,key:%%SUPABASE_KEY%%};</script>
+<script src="/candidate-form-client.js" referrerpolicy="no-referrer"></script>
+</body></html>
