@@ -3,6 +3,7 @@ import { basename } from 'node:path';
 
 const SOURCE_SHELL='app-shell.html';
 const MODULES=[
+  'matok-platform-final-v1.js',
   'matok-core-final-v1.js',
   'matok-payroll-final-v1.js',
   'matok-ui-final-v1.js',
@@ -17,6 +18,35 @@ const MODULES=[
   'matok-navigation-final-v1.js',
   'matok-onboarding-final-v1.js'
 ];
+
+const MODULE_MANIFEST=[
+  {name:'core',file:'matok-core-final-v1.js',domain:'scheduling',capabilities:['employee-portal','manager-schedule','availability','schedule-publishing']},
+  {name:'payroll',file:'matok-payroll-final-v1.js',domain:'payroll',capabilities:['payroll','attendance','bonuses','employee-documents']},
+  {name:'ui',file:'matok-ui-final-v1.js',domain:'presentation',capabilities:['responsive-ui']},
+  {name:'notifications',file:'matok-notifications-final-v1.js',domain:'messaging',capabilities:['manager-messages']},
+  {name:'access',file:'matok-access-final-v1.js',domain:'identity',capabilities:['employee-login','manager-access','credential-recovery']},
+  {name:'whatsapp',file:'matok-whatsapp-final-v1.js',domain:'messaging',capabilities:['whatsapp-handoff']},
+  {name:'health',file:'matok-health-final-v1.js',domain:'operations',capabilities:['system-health']},
+  {name:'realtime',file:'matok-realtime-final-v1.js',domain:'integration',capabilities:['realtime-sync']},
+  {name:'admin-tools',file:'matok-admin-tools-final-v1.js',domain:'operations',capabilities:['schedule-print','edit-history','manager-note']},
+  {name:'manager-home',file:'matok-manager-home-final-v1.js',domain:'presentation',capabilities:['manager-dashboard']},
+  {name:'availability-roster',file:'matok-availability-roster-final-v1.js',domain:'scheduling',capabilities:['availability-roster']},
+  {name:'navigation',file:'matok-navigation-final-v1.js',domain:'presentation',capabilities:['back-navigation']},
+  {name:'onboarding',file:'matok-onboarding-final-v1.js',domain:'workforce',capabilities:['employee-onboarding','document-extraction','direct-staff-materialization']}
+];
+
+const PRODUCT_PROFILE={
+  productId:'matok-sidir',
+  productName:'SIDIR',
+  suiteId:'matok-suite',
+  edition:process.env.MATOK_EDITION||'internal',
+  distribution:process.env.MATOK_DISTRIBUTION||'internal',
+  securityProfile:process.env.MATOK_SECURITY_PROFILE||'internal-standard',
+  brandingProfile:process.env.MATOK_BRANDING_PROFILE||'matok-basic',
+  integrationProfile:process.env.MATOK_INTEGRATION_PROFILE||'standalone',
+  tenantMode:process.env.MATOK_TENANT_MODE||'single-tenant',
+  version:1
+};
 
 const commit=(process.env.COMMIT_REF||process.env.HEAD||'local').slice(0,12);
 const buildId=`20260902-stable-rebuild-${commit}`;
@@ -189,7 +219,11 @@ const boot=`<meta name="matok-live-version" content="${buildId}">\n<meta name="m
 html=html.replace('</head>',`${boot}\n</head>`);
 const finalBodyClose=html.lastIndexOf('</body>');
 if(finalBodyClose<0)throw new Error('missing final </body> in app shell');
-const productionScripts=`<script>window.__MATOK_BUILD__=${JSON.stringify({buildId,commit,modules:MODULES})};<\/script>\n<script>\n${parts.join('\n')}\n<\/script>\n`;
+const productionScripts=`<script>
+window.__MATOK_PROFILE__=${JSON.stringify(PRODUCT_PROFILE)};
+window.__MATOK_MODULE_MANIFEST__=${JSON.stringify(MODULE_MANIFEST)};
+window.__MATOK_BUILD__=${JSON.stringify({buildId,commit,modules:MODULES,profile:PRODUCT_PROFILE,moduleManifest:MODULE_MANIFEST})};
+<\/script>\n<script>\n${parts.join('\n')}\n<\/script>\n`;
 html=html.slice(0,finalBodyClose)+productionScripts+html.slice(finalBodyClose);
 
 const forbidden=[
@@ -224,7 +258,7 @@ await writeFile('dist/join.html',join,'utf8');
 await copyFile('join-client.js','dist/join-client.js');
 
 await writeFile('dist/index.html',html,'utf8');
-await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,generatedAt:new Date().toISOString()},null,2,'utf8'));
+await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,profile:PRODUCT_PROFILE,moduleManifest:MODULE_MANIFEST,generatedAt:new Date().toISOString()},null,2),'utf8');
 for(const asset of ['manifest.webmanifest','favicon.svg']){
   await copyFile(asset,`dist/${asset}`);
 }
