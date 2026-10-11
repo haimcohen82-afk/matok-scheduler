@@ -857,6 +857,22 @@
     if(!items.length)await loadItems();
     await showStaffProfile(staffId);
   };
+  window.matokOpenEmployeeIntakeUpload=()=>{
+    if(!$('matokIntakeHub'))init();
+    const input=$('intakeUploadFile');
+    if(input)input.click();
+  };
+  window.matokOpenEmployeeIntakeRecord=async recordId=>{
+    if(!$('matokIntakeHub'))init();
+    if(!items.length)await loadItems();
+    openReview(recordId);
+  };
+  window.matokGetEmployeeIntakes=async()=>{
+    if(!$('matokIntakeHub'))init();
+    await loadItems();
+    return items.map(x=>({...x}));
+  };
+  window.matokRefreshEmployeeIntakes=loadItems;
   window.matokOpenOnboardingRecord=async recordId=>{
     if(!$('matokIntakeHub'))init();
     await loadItems();
