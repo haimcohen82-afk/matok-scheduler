@@ -177,7 +177,11 @@ async function uploadDocument(){
  const file=$('hrDocFile').files?.[0];if(!file){notify('יש לבחור קובץ.',true);return}
  if(file.size<=0||file.size>15*1024*1024){notify('הקובץ ריק או גדול מ-15MB.',true);return}
  const ext=(file.name.split('.').pop()||'bin').toLowerCase(),path=current+'/'+crypto.randomUUID()+'.'+ext;
- const up=await supabaseClient.storage.from('staff-hr-documents').upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
+ const mime={pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',
+   docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+   xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',txt:'text/plain',csv:'text/csv'}[ext]||file.type;
+ if(!mime){notify('סוג הקובץ אינו נתמך.',true);return}
+ const up=await supabaseClient.storage.from('staff-hr-documents').upload(path,file,{contentType:mime,upsert:false});
  if(up.error){notify('העלאת הקובץ נכשלה.',true);return}
  const reg=await supabaseClient.rpc('admin_hr_register_document',{p_case_id:current,p_document_type:$('hrDocType').value,p_storage_path:path,p_original_name:file.name,p_note:$('hrDocNote').value});
  if(reg.error){await supabaseClient.storage.from('staff-hr-documents').remove([path]);notify('רישום המסמך בתיק נכשל.',true);return}
