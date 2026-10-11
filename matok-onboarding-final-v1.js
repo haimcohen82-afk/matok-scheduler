@@ -834,6 +834,11 @@
       input.value='';
       if(created.length)await window.loadAdminData?.();
       await loadItems();
+      try{
+        window.dispatchEvent(new CustomEvent('matok:onboarding-imported',{detail:{
+          ids:[...ids],created:created.map(x=>({...x})),reviewIds:[...reviewIds],fileName:file.name
+        }}));
+      }catch(eventError){console.warn('onboarding import event',eventError)}
       if(created.length)showAutoCreatedEmployees(created);
       feedback(
         created.length+' עובד/ים נקלטו ישירות במערכת'+
