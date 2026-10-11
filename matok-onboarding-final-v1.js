@@ -1,9 +1,13 @@
 (() => {
   'use strict';
   const $=id=>document.getElementById(id);
-  const safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const U=window.MATOK_UTILS||{};
+  const Services=window.MATOK_SERVICES;
+  const Onboarding=Services?.onboarding;
+  const Workforce=Services?.workforce;
+  const safe=U.escapeHtml||((x)=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
   const isAdmin=()=>{try{return appSession?.type==='admin'}catch(_){return false}};
-  const BUCKET='staff-onboarding-originals';
+  const BUCKET=Onboarding?.bucket||'staff-onboarding-originals';
   const KEYS=[
     ['full_name','שם מלא'],['first_name','שם פרטי'],['last_name','שם משפחה'],
     ['identity_number','תעודה מזהה'],['birth_date','תאריך לידה'],
@@ -32,12 +36,12 @@
       modalStatus.style.display='block';
     }
   }
-  const phone972=raw=>{
+  const phone972=U.phone972||((raw)=>{
     const x=String(raw||'').trim().replace(/[\s()\-]/g,'');
     if(x.startsWith('+'))return x.slice(1).replace(/\D/g,'');
     const digits=x.replace(/\D/g,'');
     return digits.startsWith('972')?digits:digits.startsWith('0')?'972'+digits.slice(1):digits;
-  };
+  });
   function init(){
     if(!isAdmin())return;
     const panel=$('employees');
@@ -85,9 +89,9 @@
     const popup=wa?window.open('about:blank','_blank'):null;
     const b=$(wa?'intakeSendWa':'intakeCopyLink');b.disabled=true;
     try{
-      const res=await supabaseClient.rpc('admin_create_onboarding_invite');
-      if(res.error||!res.data)throw res.error||new Error('no_token');
-      const url=location.origin+'/join.html?t='+encodeURIComponent(res.data);
+      const token=await Onboarding.createInvite();
+      if(!token)throw new Error('no_token');
+      const url=location.origin+'/join.html?t='+encodeURIComponent(token);
       const message='שלום, מצורף שאלון קליטת עובד/ת ל־MATOK BASIC.\nנא למלא את הפרטים בקישור האישי:\n'+url+'\nתודה, הנהלת MATOK BASIC.';
       const whatsapp='https://wa.me/'+digits+'?text='+encodeURIComponent(message);
       const holder=$('intakeGenerated');
@@ -122,9 +126,7 @@
     if(!isAdmin()||listBusy)return;
     listBusy=true;
     try{
-      const r=await supabaseClient.rpc('admin_list_onboarding_records');
-      if(r.error)throw r.error;
-      items=r.data||[];renderItems();
+      items=await Onboarding.listRecords()||[];renderItems();
     }catch(e){console.error('onboarding records',e);feedback('טעינת השאלונים וקובצי הקליטה נכשלה.',true)}
     finally{listBusy=false}
   }
@@ -168,9 +170,9 @@
     const wrap=$('intakeReview'),box=$('intakeOriginalViewer');
     if(!record.original_path){feedback('לקליטה זו אין קובץ מקורי מצורף.',true);return}
     box.textContent='פותח את המסמך המקורי…';
-    const r=await supabaseClient.storage.from(BUCKET).createSignedUrl(record.original_path,120);
-    if(r.error||!r.data?.signedUrl){box.textContent='פתיחת המקור נכשלה. יש לרענן הרשאות או לנסות שוב.';return}
-    const url=r.data.signedUrl;
+    let url='';
+    try{url=await Onboarding.originalUrl(record.original_path,120)}catch(_){ }
+    if(!url){box.textContent='פתיחת המקור נכשלה. יש לרענן הרשאות או לנסות שוב.';return}
     const name=record.original_name||'';
     box.innerHTML=/\.(png|jpg|jpeg|webp)$/i.test(name)
       ?'<img alt="תצוגת מסמך המקור" src="'+safe(url)+'">'
@@ -186,18 +188,16 @@
     panel.style.display='block';
     panel.textContent='טוען את הטקסט המלא שנקלט…';
     try{
-      const res=await supabaseClient.rpc('admin_get_onboarding_text',{p_record_id:record.id});
-      if(res.error)throw res.error;
-      panel.textContent=res.data
-        ?'תמלול מלא של הקובץ (פרטי מנהל בלבד):\n\n'+res.data
+      const extracted=await Onboarding.getExtractedText(record.id);
+      panel.textContent=extracted
+        ?'תמלול מלא של הקובץ (פרטי מנהל בלבד):\n\n'+extracted
         :'לא נמצא טקסט קריא. יש לפתוח את הקובץ המקורי כדי לבדוק פרטים.';
     }catch(e){panel.textContent='טעינת הטקסט המלא נכשלה. נסה לפתוח את מסמך המקור.'}
   }
   async function savePending(){
     if(!active||active.review_status!=='pending')return false;
     const data={...active.details,...selectedData()};
-    const res=await supabaseClient.rpc('admin_update_onboarding_record',{p_record_id:active.id,p_details:data});
-    if(res.error)throw res.error;
+    await Onboarding.updateRecord(active.id,data);
     active.details=data;
     feedback('התיקונים נשמרו בכרטיס המועמד.');
     return true;
@@ -253,9 +253,7 @@
     const buttons=[...actions.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
     try{
       feedback('מקים כרטיס עובד, פרופיל מנהל ונתוני שכר…');
-      const r=await supabaseClient.rpc('admin_materialize_onboarding_employee',{p_record_id:active.id});
-      if(r.error)throw r.error;
-      const result=r.data||{};
+      const result=await Onboarding.materialize(active.id)||{};
       const credentials='שם משתמש: '+String(result.username||'')+'\nקוד כניסה: '+String(result.pin||'');
       actions.innerHTML='<div class="intakeState good" style="width:100%"><b>העובד נקלט ישירות במערכת.</b><br>'+
         safe(result.full_name||d.full_name)+'<br>'+
@@ -313,10 +311,9 @@
           evening:!shift.includes('בוקר')||shift.includes('ערב')||shift.includes('גמיש'),
           friday:friday.includes('כל')?'every':friday.includes('לסירוגין')?'alternate':'none',
           notes:String(active.details?.notes||'').slice(0,900)};
-        const r=await supabaseClient.rpc('admin_approve_onboarding_new',{
+        await Onboarding.approveNew({
           p_record_id:active.id,p_name:name,p_phone:phone,p_username:user,p_code:pin,p_role:role,p_settings:settings
         });
-        if(r.error)throw r.error;
         feedback('העובד נוצר והפרטים נשמרו בכרטיס. אפשר להיכנס לניהול העובדים כדי להשלים משמרות.');
         closeModal('matokIntakeModal');
         await window.loadAdminData?.();
@@ -330,24 +327,23 @@
   }
   async function openExistingApproval(){
     try{await savePending()}catch(e){feedback('שמירת התיקונים נכשלה.',true);return}
-    const r=await supabaseClient.from('staff').select('id,full_name,phone,is_active').order('full_name');
-    if(r.error){feedback('רשימת העובדים לא נטענה. בדוק הרשאות מנהל.',true);return}
+    let staffRows=[];
+    try{staffRows=await Workforce.listStaff()}catch(e){feedback('רשימת העובדים לא נטענה. בדוק הרשאות מנהל.',true);return}
     const box=$('intakeReviewActions');
     box.innerHTML='<div style="width:100%"><h3>שיוך מסמך לעובד קיים (פעיל או לא פעיל)</h3>'+
       '<p>השיוך מוסיף את פרטי הקליטה לכרטיס העובד, ללא דריסת נתונים שכבר קיימים.</p>'+
-      '<select id="intakeExistingStaff"><option value="">בחר עובד</option>'+r.data.map(x=>
+      '<select id="intakeExistingStaff"><option value="">בחר עובד</option>'+staffRows.map(x=>
         '<option value="'+safe(x.id)+'">'+safe(x.full_name)+' · '+safe(x.phone)+(x.is_active?'':' · לא פעיל')+'</option>').join('')+
       '</select><div class="intakeModalActions"><button type="button" class="btn secondary" id="intakeExistingBack">חזרה</button>'+
       '<button type="button" class="btn primary" id="intakeExistingConfirm">אישור ושיוך לכרטיס העובד</button></div></div>';
     $('intakeExistingBack').onclick=()=>openReview(active.id);
-    const matching=r.data.filter(x=>String(x.phone).replace(/\D/g,'')===String(active.details?.phone||'').replace(/\D/g,''));
+    const matching=staffRows.filter(x=>String(x.phone).replace(/\D/g,'')===String(active.details?.phone||'').replace(/\D/g,''));
     if(matching.length===1)$('intakeExistingStaff').value=matching[0].id;
     $('intakeExistingConfirm').onclick=async()=>{
       const target=$('intakeExistingStaff').value;
       if(!target){feedback('יש לבחור עובד.',true);return}
       if(!confirm('לשייך את הפרטים והמסמך המקורי לעובד שנבחר?'))return;
-      const z=await supabaseClient.rpc('admin_link_onboarding_existing',{p_record_id:active.id,p_staff_id:target});
-      if(z.error){feedback('השיוך נכשל. בדוק את פרטי העובד.',true);return}
+      try{await Onboarding.linkExisting(active.id,target)}catch(e){feedback('השיוך נכשל. בדוק את פרטי העובד.',true);return}
       closeModal('matokIntakeModal');feedback('המסמך והפרטים שויכו לעובד הקיים.');await loadItems();
     };
   }
@@ -356,8 +352,7 @@
     const linked=items.filter(x=>String(x.staff_id)===String(staffId)&&x.review_status==='approved');
     let privateProfile={};
     try{
-      const profile=await supabaseClient.rpc('admin_get_staff_private_profile',{p_staff_id:staffId});
-      if(!profile.error)privateProfile=profile.data||{};
+      privateProfile=await Workforce.getPrivateProfile(staffId)||{};
     }catch(e){console.warn('private staff profile',e)}
     ensureModal();active=null;$('intakeReview').classList.remove('withOriginal');
     $('intakeFullTextPanel').style.display='none';$('intakeFullTextPanel').textContent='';
@@ -797,24 +792,20 @@
     let uploaded=false;
     try{
       feedback('שומר את קובץ המקור בארכיון פרטי…');
-      const up=await supabaseClient.storage.from(BUCKET).upload(path,file,{contentType:mime,upsert:false});
-      if(up.error)throw up.error;uploaded=true;
+      await Onboarding.uploadOriginal(path,file,mime);uploaded=true;
 
       let ids=[];
       if(rows.length>1){
-        const reg=await supabaseClient.rpc('admin_import_onboarding_batch',{
+        ids=await Onboarding.importBatch({
           p_rows:rows,p_text:text.slice(0,115000),p_path:path,p_filename:file.name.slice(0,200)
-        });
-        if(reg.error)throw reg.error;
-        ids=reg.data||[];
+        })||[];
       }else{
         const row=rows[0]||finalizeDetails({},{});
-        const reg=await supabaseClient.rpc('admin_import_onboarding_file',{
+        const imported=await Onboarding.importFile({
           p_details:row.details,p_confidence:row.confidence,p_text:text.slice(0,115000),
           p_path:path,p_filename:file.name.slice(0,200)
         });
-        if(reg.error)throw reg.error;
-        ids=reg.data?[reg.data]:[];
+        ids=imported?[imported]:[];
       }
       if(!ids.length)throw new Error('לא נמצאו שורות עובד לשמירה');
 
@@ -822,11 +813,10 @@
       for(let i=0;i<ids.length;i++){
         const row=rows[i]||rows[0];
         if(!parseWarning&&canAutoMaterialize(row)){
-          const materialized=await supabaseClient.rpc('admin_materialize_onboarding_employee',{p_record_id:ids[i]});
-          if(!materialized.error&&materialized.data?.created){
-            created.push(materialized.data);continue;
-          }
-          console.warn('direct materialization deferred',materialized.error);
+          try{
+            const materialized=await Onboarding.materialize(ids[i]);
+            if(materialized?.created){created.push(materialized);continue}
+          }catch(error){console.warn('direct materialization deferred',error)}
         }
         reviewIds.push(ids[i]);
       }
@@ -842,7 +832,7 @@
       if(reviewIds.length===1)openReview(reviewIds[0]);
     }catch(e){
       console.error('import staff original',e);
-      if(uploaded)await supabaseClient.storage.from(BUCKET).remove([path]);
+      if(uploaded)try{await Onboarding.removeOriginal(path)}catch(cleanupError){console.error('onboarding original cleanup',cleanupError)}
       feedback('שמירת קובץ הקליטה נכשלה. אין להקליד הכול מחדש; נסה שוב או פתח את המקור לבדיקה: '+String(e?.message||''),true);
     }
   }
