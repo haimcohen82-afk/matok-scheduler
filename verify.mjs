@@ -15,6 +15,8 @@ const syntaxFiles=[
   'matok-availability-roster-final-v1.js',
   'matok-navigation-final-v1.js',
   'matok-platform-final-v1.js',
+  'matok-utils-final-v1.js',
+  'matok-services-final-v1.js',
   'matok-onboarding-final-v1.js',
   'join-client.js',
   'build.mjs',
@@ -26,6 +28,7 @@ const syntaxFiles=[
   'tests/navigation-inactive.mjs',
   'tests/onboarding.mjs',
   'tests/platform-foundation.mjs',
+  'tests/services-foundation.mjs',
 ];
 
 function run(args,label){
@@ -48,4 +51,5 @@ run(['tests/sep27-stability.mjs'],'September scheduler stabilization checks');
 run(['tests/navigation-inactive.mjs'],'all-menu navigation and inactive staff archive checks');
 run(['tests/onboarding.mjs'],'secure onboarding and questionnaire tests');
 run(['tests/platform-foundation.mjs'],'platform architecture foundation checks');
+run(['tests/services-foundation.mjs'],'shared utilities and service-layer checks');
 console.log('MATOK production verification passed');
