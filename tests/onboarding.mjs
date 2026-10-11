@@ -3,8 +3,8 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 
-const [manager,publicJs,join,schema,structuredSchema,directSchema,build,shell,dist,distJoin]=await Promise.all([
- 'matok-onboarding-final-v1.js','join-client.js','join.html',
+const [manager,services,publicJs,join,schema,structuredSchema,directSchema,build,shell,dist,distJoin]=await Promise.all([
+ 'matok-onboarding-final-v1.js','matok-services-final-v1.js','join-client.js','join.html',
  'sql/onboarding-private-intake.sql','sql/onboarding-structured-import.sql',
  'sql/onboarding-direct-materialization.sql',
  'build.mjs','app-shell.html','dist/index.html','dist/join.html'
@@ -34,16 +34,16 @@ for(const line of [
  'grant execute on function public.admin_list_onboarding_records() to authenticated'
 ])assert(schema.includes(line),'onboarding privacy invariant missing: '+line);
 assert(!schema.includes('grant execute on function public.admin_list_onboarding_records() to anon'));
-assert(manager.includes("const BUCKET='staff-onboarding-originals'"));
-assert(manager.includes('createSignedUrl(record.original_path,120)'));
+assert(manager.includes("Onboarding?.bucket||'staff-onboarding-originals'"));
 assert(manager.includes('if(active.original_path)add('));
-assert(manager.includes('admin_approve_onboarding_new'));
-assert(manager.includes('admin_link_onboarding_existing'));
-assert(manager.includes('admin_import_onboarding_file'));
-assert(manager.includes('admin_import_onboarding_batch'));
-assert(manager.includes('admin_get_staff_private_profile'));
-assert(manager.includes('admin_get_onboarding_text'));
-assert(manager.includes('admin_materialize_onboarding_employee'));
+assert(manager.includes('MATOK_SERVICES'));
+assert(!manager.includes('supabaseClient'),'onboarding UI must not call Supabase directly');
+for(const token of [
+  'admin_approve_onboarding_new','admin_link_onboarding_existing','admin_import_onboarding_file',
+  'admin_import_onboarding_batch','admin_get_staff_private_profile',
+  'admin_get_onboarding_text','admin_materialize_onboarding_employee'
+])assert(services.includes(token),'service layer missing onboarding dependency: '+token);
+assert(services.includes("originalUrl:async(path,seconds=120)"));
 assert(manager.includes('matokCanAutoMaterialize'));
 assert(manager.includes('MATOK FIELD PASS'));
 assert(directSchema.includes('admin_materialize_onboarding_employee'));
@@ -64,7 +64,7 @@ assert(manager.includes('window.matokOnboardingParseText=parseText'));
 
 // Test Hebrew labeled fields, Israeli identity validation and spreadsheet/hour-summary tables.
 {
-  const ctx={window:{},document:{documentElement:{},readyState:'loading',addEventListener(){}},
+  const ctx={window:{MATOK_UTILS:{escapeHtml:x=>String(x),phone972:x=>String(x)}},document:{documentElement:{},readyState:'loading',addEventListener(){}},
     MutationObserver:class{observe(){}},console};
   vm.runInNewContext(manager,ctx);
   const parse=ctx.window.matokOnboardingParseText;
