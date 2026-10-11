@@ -11,7 +11,7 @@ let cases=[],current=null,currentDetail=null,busy=false,lastLinks={};
 function styles(){
  if($('hrPortalStyle'))return;
  const s=document.createElement('style');s.id='hrPortalStyle';
- s.textContent='.hrEntry{display:flex;gap:7px;flex-wrap:wrap}.hrPortal section{width:min(1160px,98vw);max-height:94vh;overflow:auto}.hrTop{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.hrTabs{display:flex;gap:6px;overflow:auto;margin:10px 0;padding-bottom:3px}.hrTabs button{white-space:nowrap}.hrGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hrCard{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;margin:8px 0}.hrCase{border-right:5px solid #6bbfb5}.hrCase small{display:block;color:var(--muted)}.hrStatus{display:inline-flex;padding:4px 8px;border-radius:999px;background:#eef5f4;font-size:10px;font-weight:900}.hrView{display:none}.hrView.active{display:block}.hrForm{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hrForm label{font-size:11px;font-weight:800}.hrForm .wide{grid-column:1/-1}.hrForm textarea{min-height:82px}.hrTimeline{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.hrStep{padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--soft);font-size:10px}.hrStep.done{background:#e9f6e9;border-color:#a5cda7}.hrSource{white-space:pre-wrap;background:var(--soft);border:1px solid var(--line);padding:10px;border-radius:10px}.hrDocRow{display:grid;grid-template-columns:1.2fr .8fr .7fr auto;gap:7px;align-items:center;border-bottom:1px solid var(--line);padding:8px 0}.hrLibrary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.hrLibrary article{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--soft)}.hrEmpty{padding:15px;border:1px dashed var(--line);border-radius:12px;color:var(--muted)}@media(max-width:760px){.hrGrid,.hrForm{grid-template-columns:1fr}.hrForm .wide{grid-column:auto}.hrTimeline,.hrLibrary{grid-template-columns:1fr 1fr}.hrDocRow{grid-template-columns:1fr}.hrPortal section{width:100%}}';
+ s.textContent='.hrEntry{display:flex;gap:7px;flex-wrap:wrap}.hrPortal section{width:min(1160px,98vw);max-height:94vh;overflow:auto}.hrTop{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.hrTabs{display:flex;gap:6px;overflow:auto;margin:10px 0;padding-bottom:3px}.hrTabs button{white-space:nowrap}.hrGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hrCard{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;margin:8px 0}.hrCase{border-right:5px solid #6bbfb5}.hrCase small{display:block;color:var(--muted)}.hrStatus{display:inline-flex;padding:4px 8px;border-radius:999px;background:#eef5f4;font-size:10px;font-weight:900}.hrView{display:none}.hrView.active{display:block}.hrForm{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hrForm label{font-size:11px;font-weight:800}.hrForm .wide{grid-column:1/-1}.hrForm textarea{min-height:82px}.hrTimeline{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.hrStep{padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--soft);font-size:10px}.hrStep.done{background:#e9f6e9;border-color:#a5cda7}.hrSource{white-space:pre-wrap;background:var(--soft);border:1px solid var(--line);padding:10px;border-radius:10px}.hrDocRow{display:grid;grid-template-columns:1.2fr .8fr .7fr auto;gap:7px;align-items:center;border-bottom:1px solid var(--line);padding:8px 0}.hrLibrary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.hrLibrary article{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--soft)}.hrEmpty{padding:15px;border:1px dashed var(--line);border-radius:12px;color:var(--muted)}.obStatus{padding:10px;border-radius:10px;background:#f4f7f6;margin:8px 0}.obStatus.error{background:#fff0ed;color:#8d372f}@media(max-width:760px){.hrGrid,.hrForm{grid-template-columns:1fr}.hrForm .wide{grid-column:auto}.hrTimeline,.hrLibrary{grid-template-columns:1fr 1fr}.hrDocRow{grid-template-columns:1fr}.hrPortal section{width:100%}}';
  document.head.appendChild(s);
 }
 function notify(msg,bad=false){
@@ -121,8 +121,10 @@ function renderCase(){
  $('hrIvDecision').value=interview.decision||'pending';$('hrSaveInterview').onclick=saveInterview;
 
  $('hr-fit').innerHTML=formPanel('fit','שאלון התאמה ב-WhatsApp','שאלון למועמד על זמינות, ניסיון, קופה, רשתות חברתיות והגעה עצמאית.',fit,latestInvite('fit'));
- $('hr-intake').innerHTML=formPanel('intake','טופס קליטת עובד ב-WhatsApp','טופס קליטה מובנה. לאחר השליחה הנתונים נכנסים למערכת הקליטה הקיימת.',intake,latestInvite('intake'));
+ $('hr-intake').innerHTML=formPanel('intake','טופס קליטת עובד ב-WhatsApp','טופס קליטה מובנה. לאחר השליחה הנתונים נכנסים למערכת הקליטה הקיימת.',intake,latestInvite('intake'))+
+ '<article class="hrCard"><h3>העלאת קובץ קליטה ופענוח אוטומטי</h3><p>PDF, צילום, Word, Excel, CSV או טקסט. הקובץ עובר דרך מנוע הפענוח הקיים ומתחבר חזרה לתיק הזה.</p><button type="button" class="btn primary" id="hrUploadIntakeFile">בחירת קובץ קליטה</button></article>';
  bindFormActions('fit');bindFormActions('intake');
+ $('hrUploadIntakeFile').onclick=startCaseFileImport;
 
  renderDocuments();
  renderCaptured();
@@ -162,6 +164,34 @@ async function createFormLink(type){
 }
 async function copyLink(type){
  const url=lastLinks[type];if(!url)return;try{await navigator.clipboard.writeText(url);notify('הקישור הועתק.')}catch(_){notify('העתקה אוטומטית לא זמינה.',true)}
+}
+function startCaseFileImport(){
+ if(!current){notify('יש לפתוח תיק עובד לפני העלאת קובץ קליטה.',true);return}
+ if(typeof window.matokOpenEmployeeIntakeUpload!=='function'){notify('מנוע קליטת הקבצים אינו זמין.',true);return}
+ window.__MATOK_HR_IMPORT_CASE__=current;
+ notify('בחר קובץ קליטה. לאחר הפענוח הוא יחובר אוטומטית לתיק הזה.');
+ window.matokOpenEmployeeIntakeUpload();
+}
+async function linkImportedOnboarding(event){
+ const caseId=window.__MATOK_HR_IMPORT_CASE__;
+ if(!caseId)return;
+ window.__MATOK_HR_IMPORT_CASE__='';
+ const detail=event?.detail||{},ids=Array.isArray(detail.ids)?detail.ids:[],created=Array.isArray(detail.created)?detail.created:[];
+ if(ids.length!==1){
+   notify(ids.length>1?'הקובץ מכיל כמה עובדים ולכן לא שויך אוטומטית לתיק יחיד. הרשומות נשמרו במרכז הקליטה.':'הקובץ נשמר אך לא התקבלה רשומת קליטה לקישור.',true);
+   return;
+ }
+ try{
+   const linked=await supabaseClient.rpc('admin_hr_link_onboarding_record',{p_case_id:caseId,p_record_id:ids[0]});
+   if(linked.error)throw linked.error;
+   const staffId=created[0]?.staff_id||created[0]?.staffId||null;
+   if(staffId){
+     const staffLink=await supabaseClient.rpc('admin_hr_link_staff',{p_case_id:caseId,p_staff_id:staffId});
+     if(staffLink.error)throw staffLink.error;
+   }
+   notify(staffId?'קובץ הקליטה פוענח, העובד נוצר והתיק חובר לכרטיס העובד.':'קובץ הקליטה פוענח וחובר לתיק. נשאר לבדוק ולאשר את הקליטה.');
+   if(String(current)===String(caseId)){await openCase(caseId);tab('intake')}
+ }catch(e){console.error('link imported onboarding to HR case',e);notify('הקובץ נקלט, אך החיבור לתיק העובד נכשל: '+(e?.message||'שגיאה'),true)}
 }
 function renderDocuments(){
  const docs=currentDetail.documents||[];
@@ -222,6 +252,7 @@ function initEntry(){
  ensure();
 }
 window.matokOpenHrPortal=openPortal;
+window.addEventListener('matok:onboarding-imported',linkImportedOnboarding);
 let t=null;new MutationObserver(()=>{clearTimeout(t);t=setTimeout(initEntry,100)}).observe(document.documentElement,{childList:true,subtree:true});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(initEntry,120),{once:true});else setTimeout(initEntry,120);
 })();
