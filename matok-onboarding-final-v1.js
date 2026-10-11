@@ -857,6 +857,14 @@
     if(!items.length)await loadItems();
     await showStaffProfile(staffId);
   };
+  window.matokOpenOnboardingRecord=async recordId=>{
+    if(!$('matokIntakeHub'))init();
+    await loadItems();
+    const row=items.find(x=>String(x.id)===String(recordId));
+    if(!row){feedback('רשומת הקליטה המבוקשת לא נמצאה.',true);return}
+    openReview(row.id);
+    document.getElementById('matokIntakeModal')?.scrollIntoView?.({block:'start'});
+  };
   let timer=null;
   new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(init,120)}).observe(document.documentElement,{childList:true,subtree:true});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,140),{once:true});
