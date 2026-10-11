@@ -16,7 +16,8 @@ const MODULES=[
   'matok-manager-home-final-v1.js',
   'matok-availability-roster-final-v1.js',
   'matok-navigation-final-v1.js',
-  'matok-onboarding-final-v1.js'
+  'matok-onboarding-final-v1.js',
+  'matok-hr-portal-final-v1.js'
 ];
 
 const MODULE_MANIFEST=[
@@ -32,7 +33,8 @@ const MODULE_MANIFEST=[
   {name:'manager-home',file:'matok-manager-home-final-v1.js',domain:'presentation',capabilities:['manager-dashboard']},
   {name:'availability-roster',file:'matok-availability-roster-final-v1.js',domain:'scheduling',capabilities:['availability-roster']},
   {name:'navigation',file:'matok-navigation-final-v1.js',domain:'presentation',capabilities:['back-navigation']},
-  {name:'onboarding',file:'matok-onboarding-final-v1.js',domain:'workforce',capabilities:['employee-onboarding','document-extraction','direct-staff-materialization']}
+  {name:'onboarding',file:'matok-onboarding-final-v1.js',domain:'workforce',capabilities:['employee-onboarding','document-extraction','direct-staff-materialization']},
+  {name:'hr-portal',file:'matok-hr-portal-final-v1.js',domain:'workforce',capabilities:['candidate-cases','interviews','fit-questionnaire','intake-forms','hr-documents']}
 ];
 
 const PRODUCT_PROFILE={
@@ -241,7 +243,7 @@ for(const required of [
   'mfPrintScheduleBtn','mfEditHistoryModal','mfManagerWeeks','mfOpenCurrentWeek','settingsRows','supplies',
   'mfFinalEmployeeInit','mfFinalAdminInit','mpSingleSave','mpPrintPolicy','mfOpenPayrollAttendancePdf','mfOpenPayrollArchive','employee_get_schedule_notice','employee_mark_schedule_viewed','mfScheduleNotice',
   'admin_get_week_availability_roster','mfRosterEmployee','MATOK_BATCH_ASSIGN_V1',
-  'mfPublishedAvailabilityHidden','mfEmployeeLoginHelp','payrollBootKey','פתח הבא ב-WhatsApp','matokRefreshBackNavigation','admin_create_onboarding_invite','admin_list_onboarding_records','admin_materialize_onboarding_employee','matokCanAutoMaterialize','matokOpenOnboardingProfile','MATOK_PLATFORM','__MATOK_MODULE_MANIFEST__'
+  'mfPublishedAvailabilityHidden','mfEmployeeLoginHelp','payrollBootKey','פתח הבא ב-WhatsApp','matokRefreshBackNavigation','admin_create_onboarding_invite','admin_list_onboarding_records','admin_materialize_onboarding_employee','matokCanAutoMaterialize','matokOpenOnboardingProfile','matokOpenOnboardingRecord','matokOpenHrPortal','admin_hr_create_case','admin_hr_save_interview','admin_hr_create_form_invite','staff-hr-documents','MATOK_PLATFORM','__MATOK_MODULE_MANIFEST__'
 ])if(!html.includes(required))throw new Error(`production build missing required capability or shell dependency: ${required}`);
 
 // The public form uses only the existing, explicitly publishable client key.
@@ -256,6 +258,13 @@ join=join.replace('%%SUPABASE_URL%%',JSON.stringify(urlMatch[1]))
 if(join.includes('%%SUPABASE_'))throw new Error('incomplete onboarding public config');
 await writeFile('dist/join.html',join,'utf8');
 await copyFile('join-client.js','dist/join-client.js');
+
+let candidate=await readFile('candidate-form.html','utf8');
+candidate=candidate.replace('%%SUPABASE_URL%%',JSON.stringify(urlMatch[1]))
+                   .replace('%%SUPABASE_KEY%%',JSON.stringify(keyMatch[1]));
+if(candidate.includes('%%SUPABASE_'))throw new Error('incomplete candidate-form public config');
+await writeFile('dist/candidate-form.html',candidate,'utf8');
+await copyFile('candidate-form-client.js','dist/candidate-form-client.js');
 
 await writeFile('dist/index.html',html,'utf8');
 await writeFile('dist/version.json',JSON.stringify({buildId,commit,modules:MODULES,profile:PRODUCT_PROFILE,moduleManifest:MODULE_MANIFEST,generatedAt:new Date().toISOString()},null,2),'utf8');
